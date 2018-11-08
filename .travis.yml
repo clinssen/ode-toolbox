@@ -12,6 +12,8 @@ before_install:
 
 install:
   - pip3 install -r requirements.txt
+  - pip3 show pygsl
+  - dpkg -l libgsl-dev
 
 script:
   - python3 setup.py install
