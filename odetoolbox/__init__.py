@@ -28,6 +28,7 @@ from . import analytic
 from . import numeric
 from . import shapes
 
+from . import stiffness
 try:
     from . import stiffness
     HAVE_STIFFNESS = True
