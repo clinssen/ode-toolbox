@@ -21,9 +21,13 @@
 
 from __future__ import print_function
 
+globals_before = globals().copy()
+from math import *
+globals_after = globals().copy()
+math_module_funcs = {k: v for (k, v) in globals_after.items() if not k in globals_before.keys() and not k == "globals_before" and not k[0] == "_"}
+
 import numpy
 import jinja2
-from math import *
 from sympy import *
 import re
 import numpy.random
@@ -253,13 +257,16 @@ def prepare_jacobian_matrix(ode_definitions):
         "        row.append(replace_state_variables_through_array_access(str(diff(rhs, state_variable))))\n"
         "    result_matrix_str = result_matrix_str + '\\n'\n"
         "    result_matrix.append(row)\n")
-
+    
     # map state variables to a create jinja2 template
     jacobian_function_implementation = jinja2.Template(jacobian_function_body)
     jacobian_function_implementation = jacobian_function_implementation.render(
         odes=ode_definitions,
         state_variables=sorted(ode_definitions.keys()))
 
+    # print("jacobian_function_implementation:")
+    # print(str(jacobian_function_implementation))
+    
     # compile the generated code from the  jinja2 template for the better performance
     jacobian_function_implementation = compile(jacobian_function_implementation, '<string>', 'exec')
     # this matrix which is stored in the global variable is used in the `jacobian` function
@@ -311,8 +318,9 @@ def prepare_step_function(ode_definitions):
     step_function_implementation = step_function_implementation.render(
         odes=ode_definitions_tmp,
         ode_vars=sorted(ode_definitions_tmp.keys()))
-    print("step function implementation:")
-    print(step_function_implementation)
+    
+    # print("step function implementation:")
+    # print(step_function_implementation)
 
     # compile the code to boost the performance
     step_function_implementation = compile(step_function_implementation, '<string>', 'exec')
@@ -413,7 +421,7 @@ def evaluate_integrator(h,
 
     for time_slice in range(simulation_slices):
         t_new = t + h
-        # print "Start while loop at slot " + str(time_slice)
+        # print("Start while loop at slot " + str(time_slice) + " (total " + str(simulation_slices) + " slots)")
         counter_while_loop = 0
         t_old = 0
         while t < t_new:
@@ -451,9 +459,7 @@ def evaluate_integrator(h,
         for idx, initial_value in enumerate(initial_values):
             matcher = re.compile(r".*(\d)+$")
             oder_order_number = int(matcher.match(initial_value).groups(0)[0])
-            parameters_with_locals = globals().copy()
-            for key in parameters:
-                parameters_with_locals[key] = parameters[key]
+            parameters_with_locals = {**math_module_funcs.copy(), **parameters.copy()}
             y[oder_order_number] += eval(initial_values[initial_value], parameters_with_locals) * spikes[idx][time_slice]
 
     step_average = (t - sum_last_steps) / step_counter
@@ -500,12 +506,15 @@ def step(t, y, params):
     :return: Updated state vector stored in `f`
     """
     global step_function_implementation
+    global math_module_funcs
+    global parameters
+
     dimension = len(y)
     # f is used in the step_function_implementation. since it is a return value of this function, it is declared here
     # explicitly
     f = numpy.zeros((dimension,), numpy.float)
 
-    parameters_with_locals = parameters.copy()
+    parameters_with_locals = {**math_module_funcs.copy(), **parameters.copy()}
     parameters_with_locals["f"] = f
     parameters_with_locals["y"] = y
 
@@ -524,10 +533,7 @@ def compute_initial_state_vector(state_start_values, dimension):
     for state_start_variable in state_start_values:
         matcher = re.compile(r".*(\d)+$")
         oder_order_number = int(matcher.match(state_start_variable).groups(0)[0])
-
-        parameters_with_locals = locals().copy()
-        parameters_with_locals.update(parameters)
-
+        parameters_with_locals = {**math_module_funcs.copy(), **parameters.copy()}
         y[oder_order_number] = eval(state_start_values[state_start_variable], parameters_with_locals)
     return y
 
@@ -551,7 +557,7 @@ def jacobian(t, y, params):
     for row in range(0, dimension):
         for col in range(0, dimension):
             # wrap the expression to a lambda function for the improved performance
-            parameters_with_locals = parameters.copy()
+            parameters_with_locals = {**math_module_funcs.copy(), **parameters.copy()}
             parameters_with_locals["y"] = y
             tmp = eval("lambda: " + jacobian_matrix_implementation[row][col], parameters_with_locals)
             dfdy[row, col] = tmp()
