@@ -2,22 +2,26 @@
 
 [![Build status](https://travis-ci.org/nest/ode-toolbox.svg?branch=master)](https://travis-ci.org/nest/ode-toolbox) [![Testing coverage](https://codecov.io/gh/nest/ode-toolbox/branch/master/graph/badge.svg)](https://codecov.io/gh/nest/ode-toolbox)
 
+[comment]: # (What kind of entity is ode-toolbox? A package? A library? An application? Knowing this would also help re-write sentences to preserve the lower-casedness of ode-toolbox)
+
 Choosing the optimal solver for systems of ordinary differential equations (ODEs) is a critical step in dynamical systems simulation. Ode-toolbox assists in solver benchmarking, and recommends solvers on the basis of a set of user-configurable heuristics. For all dynamical equations that admit an analytic solution, ode-toolbox generates propagator matrices that allow the solution to be calculated at machine precision.
 
-The internal processing carried out by ode-toolbox can be visually summarised as follows, starting from a system of ODEs (or functions of time) on the top (double outline), and generating propagator matrices, Jacobian (first-order) update expressions, and/or recommending either a stiff or nonstiff solver (green nodes). Each step will be described below in depth.
+[comment]: # (Maybe add a sentence on what awesome things will happen if no analytic solution can be found, or lose the sentence about the analytical solutions.)
+
+The internal processing carried out by ode-toolbox can be summarised by the following diagram, starting from a system of ODEs (or functions of time) on the top (double outline), and generating propagator matrices, Jacobian (first-order) update expressions, and/or recommending either a stiff or non-stiff solver (green nodes). Each step will be described below in depth.
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/clinssen/ode-toolbox/merge_shape_ode_concepts-dev/doc/fig/flow_diagram.png" alt="Flow diagram" width="620" height="463">
 </p>
 
-ode-toolbox is written in Python and leverages SymPy for the symbolic manipulation of equations. It was initially developed in the context of the [NESTML](https://github.com/nest/nestml) project, in which the main focus was on the class of spiking neurons presently available in the [NEST](https://github.com/nest/nest-simulator) simulator. It can, however, be used standalone and is broadly applicable to continuous-time dynamical systems as well as systems that undergo instantaneous events (such as neuronal spikes or impulsive forces).
+Ode-toolbox is written in Python and leverages SymPy for the symbolic manipulation of equations. It was initially developed in the context of the [NESTML](https://github.com/nest/nestml) project, in which the main focus was on the class of spiking neurons presently available in the [NEST](https://github.com/nest/nest-simulator) simulator. It can, however, be used in a standalone fashion, and is broadly applicable to continuous-time dynamical systems as well as systems that undergo instantaneous events (such as neuronal spikes or impulsive forces).
 
 
 ## Installation
 
 ### Prerequisites
 
-Only Python 3 is supported. ode-toolbox depends on the Python packages SymPy, Cython, SciPy and NumPy (required), matplotlib and graphviz for visualisation (optional), and pytest for self-tests (also optional). The stiffness tester additionally depends on an installation of [PyGSL](http://pygsl.sourceforge.net/). If PyGSL is not installed, the test for stiffness is skipped during the analysis of the equations.
+Only Python 3 is supported. Ode-toolbox depends on the Python packages SymPy, Cython, SciPy and NumPy (required), matplotlib and graphviz for visualisation (optional), and pytest for self-tests (also optional). The stiffness tester additionally depends on an installation of [PyGSL](http://pygsl.sourceforge.net/). If PyGSL is not installed, the test for stiffness is skipped during the analysis of the equations.
 
 All required and optional packages can be installed by running 
 
@@ -28,7 +32,7 @@ pip install -r requirements.txt
 
 ### Installing ode-toolbox
 
-To install, clone the repository, go to the root directory and then run the following commands in a terminal:
+To install, clone the repository, go to the root directory and then run the following command in a terminal:
 
 ```
 python setup.py install
@@ -54,7 +58,7 @@ To increase the verbosity, append the command-line parameters `-s -o log_cli=tru
 
 ## Usage
 
-ode-toolbox can be used in two ways:
+Ode-toolbox can be used in two ways:
 
 1. As a Python module. Import the `odetoolbox` module, and then call `odetoolbox.analysis(indict)` where `indict` is the JSON-like input in Python dictionary format. See the tests (e.g. [test_lorenz_attractor.py](tests/test_lorenz_attractor.py)) for a full example.
 2. As command line application. In this case, the input is stored in a JSON file, and ode-toolbox is invoked from the command line:
@@ -76,12 +80,17 @@ Several boolean flags can additionally be passed; when ode-toolbox is used via i
 
 The JSON input dictionary that is passed to ode-toolbox contains [dynamics](#dynamics), [numerical parameters](#parameters), and [global options](#global-options). Documentation may optionally be provided as a string.
 
-All expressions are parsed as sympy expressions, and subsequently simplified through `sympy.simplify()`. There are several predefined symbols, such as `e` and `E` for Euler's number, trigonometric functions, etc. `t` is assumed to represent time. The list of predefined symbols is defined in [`shapes.py`](odetoolbox/shapes.py), as the static member `Shape._sympy_globals`. Variable names should be chosen such that they do not overlap with the predefined symbols.
+All expressions are parsed as SymPy expressions, and subsequently simplified through `sympy.simplify()`. There are several predefined symbols, such as `e` and `E` for Euler's number, trigonometric functions, etc. `t` is assumed to represent time. The list of predefined symbols is defined in [`shapes.py`](odetoolbox/shapes.py), as the static member `Shape._sympy_globals`. Variable names should be chosen such that they do not conflict with the predefined symbols.
 
+[comment]: # (consider adding the list of pre-defined symbols to the documentation rather than linking to source code)
 
 ### Dynamics
 
+[comment]: # (for the three alternative formulations of the alpha function, is it possible to write them in latex as well as SymPy expression?)
+
 All dynamical variables have a variable name, a differential order, and a defining expression. The overall dynamics is given as a list of these definitions. For example, we can define an alpha shape kernel :math:`g` with time constant :math:`\tau` as follows:
+
+[comment]: # (In the parsed versrion on Github I can see, literally, :math: - is this intended, or would it be rendered differently under other conditions?)
 
 ```Python
 "dynamics":
@@ -165,10 +174,11 @@ Thresholds are mainly of interest when doing stiffness testing, and only apply t
 }
 ```
 
+[comment]: # (The above code snippet is much more colorful than the previos ones, and it is not at all clear what the colours signify)
 
 ### Parameters
 
-It is not necessary to supply any numerical values for parameters. The expressions are symbolically analysed, and in some cases a set of symbolic propagators will be generated. However, in some cases (in particular when doing stiffness testing), it can be important to simulate with a particular set of parameter values. In this case, they can be specified in the global `parameters` dictionary. This dictionary maps parameter names to default values, for example:
+It is not necessary to supply any numerical values for parameters. The expressions are analysed symbolically, and in some cases a set of symbolic propagators will be generated. However, in some cases (in particular when doing stiffness testing), it can be important to simulate with a particular set of parameter values. In this case, they can be specified in the global `parameters` dictionary. This dictionary maps parameter names to default values, for example:
 
 ```Python
 "parameters":
@@ -208,6 +218,8 @@ The type is one of `"poisson_generator"`, `"regular"` or `"list"`. The Poisson a
 
 Note that the "amplitude" of a spike response is a result of the magnitude of its initial values.
 
+[comment]: # (why is amplitude in quotes?))
+
 
 ### Global options
 
@@ -231,6 +243,8 @@ The following global options are defined. Note that all are typically formatted 
 | `max_step_size` | 999 | float | Maximum step size during simulation (e.g. for stiffness testing solvers). |
 | `differential_order_symbol` | `"__d"` | string | String appended n times to output variable names to indicate differential order n. XXX: TODO: only the default value works for now. |
 
+[comment]: # (Remminder that there is a to-do in plaintext here)
+
 
 ## Output
 
@@ -253,10 +267,12 @@ Analytic solvers have the following extra entries:
 Numeric solvers have the following extra entries:
 - `update_expressions`: a dictionary that maps each variable symbol (in string form) to a sympy expression that is its Jacobian, that is, for a symbol :math:`x`, the expression is equal to :math:`\frac{\delta x}{\delta t}`.
 
+[comment]: # (Again I can see :math: in the parsed version - expected?)
+
 
 ## Analytic solver selection criteria
 
-If an ODE is homogeneous, constant-coefficient and linear, an analytic solution can be computed. Analytically solvable ODEs can also contain dependencies on other analyically solvable ODEs, but an otherwise analytically tractable ODE cannot depend on an ODE that can only be solved numerically. In the latter case, no analytic solution will be computed.
+If an ODE is homogeneous, constant-coefficient and linear, an analytic solution can be computed. Analytically solvable ODEs can also contain dependencies on other analytically solvable ODEs, but an otherwise analytically tractable ODE cannot depend on an ODE that can only be solved numerically. In the latter case, no analytic solution will be computed.
 
 For example, consider an integrate-and-fire neuron with two alpha-shaped kernels (`I_shape_in` and `I_shape_gap`), and one nonlinear kernel (`I_shape_ex`). Each of these kernels can be expressed as a system of ODEs containing two variables. `I_shape_in` is specified as a second-order equation, whereas `I_shape_gap` is explicitly given as a system of two coupled first-order equations, i.e. as two separate `dynamics` entries with names `I_shape_gap1` and `I_shape_gap2`.
 
@@ -274,7 +290,7 @@ Each variable is subsequently marked according to whether it can, by itself, be 
 <img src="https://raw.githubusercontent.com/clinssen/ode-toolbox/merge_shape_ode_concepts-dev/doc/fig/eq_analysis_1.png" alt="Dependency graph with membrane potential and excitatory and gap junction kernels marked green" width="720" height="383">
 </p>
 
-Second, variables are unmarked as analytically solvable if they depend on other variables that are themselves not analytically solvable. In this example, `V_abs` is unmarked as it depends on the nonlinear excitatory kernel.
+In the next step, variables are unmarked as analytically solvable if they depend on other variables that are themselves not analytically solvable. In this example, `V_abs` is unmarked as it depends on the nonlinear excitatory kernel.
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/clinssen/ode-toolbox/merge_shape_ode_concepts-dev/doc/fig/eq_analysis_2.png" alt="Dependency graph with membrane potential and excitatory and gap junction kernels marked green" width="720" height="383">
@@ -282,16 +298,22 @@ Second, variables are unmarked as analytically solvable if they depend on other 
 
 The analytic solution for all green nodes is computed in the form of a propagator matrix. See the section "Analytic solver generation" for more details.
 
+[comment]: # (can you link to the section, or is that not possible with md?)
+
 
 ## Numeric solver selection criteria
 
 Solver selection is performed on the basis of a set of rules, defined in `StiffnessTester.draw_decision()`. The logic is as follows:
+
+[comment]: # (maybe add a sentence of motivation, i.e. what are we trying to achieve with these rules? We are trying to evaluate which solver will be most effcient)
 
  * If the minimum step size recommended by all solvers is smaller than `machine_precision_dist_ratio` times the machine precision, a warning is issued.
  * If the minimum step size for the implicit solver is smaller than `machine_precision_dist_ratio` times the machine precision, recommend the explicit solver.
  * If the minimum step size for the explicit solver is smaller than `machine_precision_dist_ratio` times the machine precision, recommend the implicit solver.
  * If the average step size for the implicit solver is at least `avg_step_size_ratio` times as large as the average step size for the explicit solver, recommend the implicit solver.
  * Otherwise, recommend the explicit solver.
+ 
+ [comment]: # (I found the bullet list hard to read. Consider defining the machine precision as a variable, e.g. k, and then writing k \times machine_precision_dist_ratio)
 
 
 | Name        | Default           | Description  |
@@ -307,6 +329,8 @@ Solver selection is performed on the basis of a set of rules, defined in `Stiffn
 For users who want to modify/extend ode-toolbox.
 
 Initially, individual expressions are read from JSON into Shape instances. Subsequently, all shapes are combined into a SystemOfShapes instance, which summarises all provided dynamical equations in the canonical form :math:`\mathbf{x}' = \mathbf{Ax} + \mathbf{C}`, with matrix :math:`\mathbf{A}` containing the linear part of the system dynamics and vector :math:`\mathbf{C}` containing the nonlinear terms.
+
+[comment]: # (Should Shape and SystemOfShapes be set as `Shape'etc? Also lots of visible :math: in this section)
 
 
 ### Converting direct functions of time
@@ -340,7 +364,9 @@ In some cases, elements of `P` may contain fractions that have a factor of the f
 
 ## Working with large expressions
 
-In several places during processing, a sympy expression simplification (`simplify()`) needs to be performed to ensure correctness. For very large expressions, this can result in long wait times, while it is most often found that the resulting system of equations has no analytical solution anyway. To address these performance issues with sympy, we introduce the `Shape.EXPRESSION_SIMPLIFICATION_THRESHOLD` constant, which causes expressions whose string representation is longer than this number of characters to not be skipped when simplifying expressions. The default value is 1000.
+In several places during processing, a SymPy expression simplification (`simplify()`) needs to be performed to ensure correctness. For very large expressions, this can result in long wait times, while it is most often found that the resulting system of equations has no analytical solution anyway. To address these performance issues with SymPy, we introduce the `Shape.EXPRESSION_SIMPLIFICATION_THRESHOLD` constant, which causes expressions whose string representation is longer than this number of characters to not be skipped when simplifying expressions. The default value is 1000.
+
+[comment]: # (I didn't understand this: "causes expressions ... to not be skipped". Maybe elaborate)
 
 A caching mechanism will be implemented in the future to further improve runtime performance.
 
@@ -355,6 +381,7 @@ Several example input files can be found under `tests/*.json`. Some highlights:
  * [Integrate-and-fire neuron with alpha-kernel postsynaptic conductances](tests/iaf_cond_alpha_odes_stiff.json)
  * [Canonical, two-dimensional stiff system](tests/stiff_system.json) ex. 11.57, Dahmen, W., and Reusken, A. (2005). Numerik fuer Naturwissenschaftler. Berlin: Springer
 
+[comment]: # (what does the ex 11.57 mean?)
 
 ### Stiffness testing
 
@@ -369,15 +396,15 @@ This example correponds to the unit test in [`tests/test_stiffness.py`](tests/te
 
 ### From ode-toolbox results dictionary to simulation
 
-ode-toolbox provides two classes that can perform numerical simulation on the basis of the results dictionary returned by ode-toolbox: [AnalyticIntegrator](odetoolbox/analytic_integrator.py), which simulates on the basis of propagators and returns precise values, and [MixedIntegrator](odetoolbox/mixed_integrator.py), which in addition performs numerical integration using GSL (for example, using `pygsl.odeiv.step_rk4` or `pygsl.odeiv.step_bsimp`). These integrators both use `sympy.parsing.sympy_parser` to parse the expression strings from the ode-toolbox results dictionary, and then use the sympy expression `evalf()` method to evaluate to a floating-point value.
+Ode-toolbox provides two classes that can perform numerical simulation on the basis of the results dictionary returned by ode-toolbox: [AnalyticIntegrator](odetoolbox/analytic_integrator.py), which simulates on the basis of propagators and returns precise values, and [MixedIntegrator](odetoolbox/mixed_integrator.py), which in addition performs numerical integration using GSL (for example, using `pygsl.odeiv.step_rk4` or `pygsl.odeiv.step_bsimp`). These integrators both use `sympy.parsing.sympy_parser` to parse the expression strings from the ode-toolbox results dictionary, and then use the sympy expression `evalf()` method to evaluate to a floating-point value.
 
-The file [`tests/test_analytic_solver_integration.py`](tests/test_analytic_solver_integration.py) contains an integration test, that uses [AnalyticIntegrator](odetoolbox/analytic_integrator.py) and the propagators returned from ode-toolbox to simulate a simple dynamical system; in this case, an integrate-and-fire neuron with alpha-shaped postsynaptic currents. It compares the obtained result to a handwritten solution, which is simulated analytically and numerically independent of ode-toolbox. The following results figure shows perfect agreement between the three simulation methods:
+The file [`tests/test_analytic_solver_integration.py`](tests/test_analytic_solver_integration.py) contains an integration test that uses [AnalyticIntegrator](odetoolbox/analytic_integrator.py) and the propagators returned from ode-toolbox to simulate a simple dynamical system; in this case, an integrate-and-fire neuron with alpha-shaped postsynaptic currents. It compares the obtained result to a handwritten solution, which is simulated analytically and numerically independent of ode-toolbox. The following results figure shows perfect agreement between the three simulation methods:
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/clinssen/ode-toolbox/merge_shape_ode_concepts-dev/doc/fig/test_analytic_solver_integration.png" alt="V_abs, i_ex and i_ex' timeseries plots" width="620" height="465">
 </p>
 
-The file [`test/test_mixed_integrator_numeric.py`](test/test_mixed_integrator_numeric.py) contains an integration test, that uses [MixedIntegrator](odetoolbox/mixed_integrator.py) and the results dictionary from ode-toolbox to simulate the same integrate-and-fire neuron with alpha-shaped postsynaptic response, but purely numerically (without the use of propagators). In contrast to the [AnalyticIntegrator](odetoolbox/analytic_integrator.py), enforcement of upper- and lower bounds is supported, as can be seen in the behaviour of :math:`V_m` in the plot that is generated:
+The file [`test/test_mixed_integrator_numeric.py`](test/test_mixed_integrator_numeric.py) contains an integration test that uses [MixedIntegrator](odetoolbox/mixed_integrator.py) and the results dictionary from ode-toolbox to simulate the same integrate-and-fire neuron with alpha-shaped postsynaptic response, but purely numerically (without the use of propagators). In contrast to the [AnalyticIntegrator](odetoolbox/analytic_integrator.py), enforcement of upper- and lower bounds is supported, as can be seen in the behaviour of :math:`V_m` in the plot that is generated:
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/clinssen/ode-toolbox/merge_shape_ode_concepts-dev/doc/fig/test_mixed_integrator_numeric.png" alt="g_in, g_in__d, g_ex, g_ex__d, V_m timeseries plots" width="620" height="451">
@@ -392,6 +419,8 @@ The primary development of ode-toolbox happens on GitHub, at https://github.com/
 ## Citing ode-toolbox
 
 If you use ode-toolbox in your work, please cite it as:
+
+[comment]: # (Actually I disagree with this. If they use it, they should cite the software itself, as per its zenodo entry. If people want a deeper explanation of the mechanisms, they should consult the Blundell publication)
 
 Inga Blundell, Dimitri Plotnikov, Jochen Martin Eppler and Abigail Morrison (2018) **Automatically selecting a suitable integration scheme for systems of differential equations in neuron models.** Front. Neuroinform. [doi:10.3389/fninf.2018.00050](https://doi.org/10.3389/fninf.2018.00050). Preprint available on [Zenodo](https://zenodo.org/record/1411417).
 
