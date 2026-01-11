@@ -200,7 +200,7 @@ class SystemOfShapes:
 
         return SystemOfShapes(x_sub, A_sub, b_sub, c_sub, shapes_sub)
 
-    def _generate_propagator_matrix(self, A) -> sympy.Matrix:
+    def _generate_propagator_matrix(self, A, use_alternative_expM: bool = False) -> sympy.Matrix:
         r"""Generate the propagator matrix by matrix exponentiation."""
 
         try:
@@ -208,7 +208,7 @@ class SystemOfShapes:
             logging.debug("Computing propagator matrix (block-diagonal optimisation)...")
             blocks = get_block_diagonal_blocks(np.array(A))
 
-            if Config().use_alternative_expM:
+            if use_alternative_expM:
                 expM = expMt
             else:
                 expM = sympy.exp
@@ -255,12 +255,11 @@ class SystemOfShapes:
         # nothing was removed
         return conditions
 
-    def generate_propagator_solver(self, disable_singularity_detection: bool = False):
+    def generate_propagator_solver(self, disable_singularity_detection: bool = False, use_alternative_expM: bool = False):
         r"""
         Generate the propagator matrix and symbolic expressions for propagator-based updates; return as JSON.
         """
-
-        P = self._generate_propagator_matrix(self.A_)
+        P = self._generate_propagator_matrix(self.A_, use_alternative_expM=use_alternative_expM)
 
         #
         #    singularity detection
@@ -278,7 +277,6 @@ class SystemOfShapes:
                     logging.info("List of all conditions that result in a division by zero:")
                     for cond in conditions:
                         logging.info("\t" + str(cond.lhs) + " = " + str(cond.rhs))
-                    logging.info("Alternate solvers will be generated for each of these conditions (and combinations thereof).")
 
                     # generate solver for the base case (with singularity conditions that are not met)
                     default_solver = self.generate_solver_dict_based_on_propagator_matrix_(P)
@@ -296,6 +294,7 @@ class SystemOfShapes:
 
                     num_conditions = len(conditions)
                     condition_permutations = list(itertools.product([False, True], repeat=num_conditions))
+                    logging.info("Alternate solvers will be generated for each of these conditions (and combinations thereof), which amounts to " + str(len(condition_permutations)) + " solvers that will be generated.")
                     for condition_permutation in condition_permutations:
                         # each ``condition_permutation[i]`` is True/False corresponding to condition i
 
@@ -329,7 +328,7 @@ class SystemOfShapes:
                                 conditional_c = conditional_c.subs(eq.lhs, eq.rhs)
 
                         conditional_dynamics = SystemOfShapes(self.x_, conditional_A, conditional_b, conditional_c, self.shapes_)
-                        solver_dict_conditional = conditional_dynamics.generate_propagator_solver(disable_singularity_detection=True)
+                        solver_dict_conditional = conditional_dynamics.generate_propagator_solver(disable_singularity_detection=True, use_alternative_expM=use_alternative_expM)
                         solver_dict["conditions"][condition_str] = {"propagators": solver_dict_conditional["propagators"],
                                                                     "update_expressions": solver_dict_conditional["update_expressions"]}
 
