@@ -33,7 +33,7 @@ import sympy.matrices
 from .config import Config
 from .shapes import Shape
 from .singularity_detection import SingularityDetection, SingularityDetectionException
-from .sympy_helpers import SymmetricEq, _custom_simplify_expr, _is_zero, _sympy_parse_real, expMt
+from .sympy_helpers import SymmetricEq, _custom_simplify_expr, _is_zero, _sympy_parse_real
 
 
 class GetBlockDiagonalException(Exception):
@@ -47,7 +47,6 @@ def get_block_diagonal_blocks(A):
     assert A.shape[0] == A.shape[1], "matrix A should be square"
 
     A_connectivity_undirected = (A != 0) | (A.T != 0)    # make symmetric (undirected) connectivity graph from the system matrix
-    A_connectivity_undirected = np.triu(A_connectivity_undirected)
 
     graph_components = scipy.sparse.csgraph.connected_components(A_connectivity_undirected)[1]
 
@@ -208,12 +207,7 @@ class SystemOfShapes:
             # optimized: be explicit about block diagonal elements; much faster!
             logging.debug("Computing propagator matrix (block-diagonal optimisation)...")
             blocks = get_block_diagonal_blocks(np.array(A))
-            if Config().use_alternative_expM:
-                expM = expMt
-            else:
-                expM = sympy.exp
-
-            propagators = [sympy.simplify(expM(sympy.Matrix(block) * sympy.Symbol(Config().output_timestep_symbol, real=True))) for block in blocks]
+            propagators = [sympy.simplify(sympy.exp(sympy.Matrix(block) * sympy.Symbol(Config().output_timestep_symbol, real=True))) for block in blocks]
             P = sympy.Matrix(scipy.linalg.block_diag(*propagators))
         except GetBlockDiagonalException:
             # naive: calculate propagators in one step
