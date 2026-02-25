@@ -44,7 +44,7 @@ Installation
 
 .. Attention:: To perform solver benchmarking, ODE-toolbox relies on GSL and PyGSL. Currently, the latest PyGSL release is not compatible with GSL. We recommend to use GSL 2.7 for now. This issue is being tracked at https://github.com/pygsl/pygsl/issues/62.
 
-.. Attention:: Versions of sympy before 1.14.0 can introduce numerical precision errors and very long processing times. It is recommended to use the latest sympy version available.
+.. Attention:: Versions of sympy before 1.14.0 can introduce numerical precision errors and very long processing times. It is recommended to use the latest sympy version available, but at least version 1.14.0.
 
 
 Prerequisites
@@ -425,7 +425,7 @@ In some cases, parameter choices of the input can lead to numerical singularitie
          }
      }
 
-  In general, there can be from 2 to any number of conditions. Conditions can involve boolean logic through the ``"&&"`` symbol for logical AND, ``"||"`` for logical OR, and the use of parentheses. The equality symbol, separating the left- and right-hand sides of the comparison, is written as ``"=="``.
+  In general, there can be from two to any number of conditions. Conditions can involve boolean logic through the ``"&&"`` symbol for logical AND, ``"||"`` for logical OR, and the use of parentheses. The equality symbol, separating the left- and right-hand sides of the comparison, is written as ``"=="``.
 
 
 Analytic solver generation
