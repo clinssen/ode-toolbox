@@ -102,9 +102,10 @@ class SingularityDetection:
         """
         for val in sympy.flatten(A):
             if isinstance(val, float) or isinstance(val, int) or isinstance(val, sympy.core.numbers.Number):
+                # a number is always defined under substitution
                 continue
 
-            expr_sub = val.copy()
+            expr_sub = val
             if isinstance(cond, set):
                 for _cond in cond:
                     expr_sub = expr_sub.subs(_cond.lhs, _cond.rhs)
