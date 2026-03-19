@@ -346,16 +346,16 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
                 if symbol_appears_in_any_expr(sym, solver_json):
                     sympy_expr = _sympy_parse_real(param_expr, global_dict=Shape._sympy_globals)
 
-                    # validate output for numerical problems
+                    # validate output for numerical problems -- note that we skip checking for infinity here as some parameters (like "V_max") could be legitimately defined as infinity
                     for var in sympy_expr.atoms():
-                        _check_numerical_issue(var)
+                        _check_numerical_issue(var, check_infty=False)
 
                     # convert to numeric value
                     sympy_expr = sympy_expr.n()
 
-                    # validate output for numerical problems
+                    # validate output for numerical problems -- note that we skip checking for infinity here as some parameters (like "V_max") could be legitimately defined as infinity
                     for var in sympy_expr.atoms():
-                        _check_numerical_issue(var)
+                        _check_numerical_issue(var, check_infty=False)
 
                     solver_json["parameters"][param_name] = str(sympy_expr)
 

@@ -44,7 +44,7 @@ Installation
 
 .. Attention:: To perform solver benchmarking, ODE-toolbox relies on GSL and PyGSL. Currently, the latest PyGSL release is not compatible with GSL. We recommend to use GSL 2.7 for now. This issue is being tracked at https://github.com/pygsl/pygsl/issues/62.
 
-.. Attention:: Versions of sympy before 1.14.0 can introduce numerical precision errors and very long processing times. It is recommended to use the latest sympy version available.
+.. Attention:: Versions of sympy before 1.14.0 can introduce numerical precision errors and very long processing times. It is recommended to use the latest sympy version available, but at least version 1.14.0.
 
 
 Prerequisites
@@ -428,7 +428,7 @@ In some cases, parameter choices of the input can lead to numerical singularitie
          }
      }
 
-  In general, there can be from 2 to any number of conditions. Conditions can involve boolean logic through the ``"&&"`` symbol for logical AND, ``"||"`` for logical OR, and the use of parentheses. The equality symbol, separating the left- and right-hand sides of the comparison, is written as ``"=="``.
+  In general, there can be from two to any number of conditions. Conditions can involve boolean logic through the ``"&&"`` symbol for logical AND, ``"||"`` for logical OR, and the use of parentheses. The equality symbol, separating the left- and right-hand sides of the comparison, is written as ``"=="``.
 
 
 Analytic solver generation
@@ -503,7 +503,7 @@ Initially, individual expressions are read from JSON into Shape instances. Subse
 Converting direct functions of time
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The aim is to find a representation of the form :math:`a_0 f + a_1 f' + ... + a_{n-1} f^{(n-1)} = f^{(n)}`, with :math:`a_i\in\mathbb{R}\,\forall 0 \leq i < n`. The approach taken here [10]_ works by evaluating the function :math:`f(t)` at times :math:`t = t_0, t_1, \ldots t_n`, which results in :math:`n` equations, that we can use to solve for the coefficients of the potentially :math:`n`-dimensional dynamical system.
+The aim is to find a representation of the form :math:`a_0 f + a_1 f' + ... + a_{n-1} f^{(n-1)} = f^{(n)}`, with :math:`a_i\in\mathbb{R}\,\forall 0 \leq i < n`. The approach taken here [11]_ works by evaluating the function :math:`f(t)` at times :math:`t = t_0, t_1, \ldots t_n`, which results in :math:`n` equations, that we can use to solve for the coefficients of the potentially :math:`n`-dimensional dynamical system.
 
 1. Begin by assuming that the dynamical system is of order :math:`n`.
 2. Find timepoints :math:`t = t_0, t_1, ..., t_n` such that :math:`f(t_i) \neq 0 \forall 0 \leq i \leq n`. The times can be selected at random.
@@ -654,47 +654,51 @@ Citing ODE-toolbox
 
 If you use ODE-toolbox in your work, please cite it depending on the version you are using. (It is recommended to use the latest release version whenever possible.)
 
+For version 2.5.12:
+
+.. [1] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2026) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.18341252 <https://doi.org/10.5281/zenodo.18341252>`__.
+
 For version 2.5.11:
 
-.. [1] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.17169870 <https://doi.org/10.5281/zenodo.17169870>`__.
+.. [2] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.17169870 <https://doi.org/10.5281/zenodo.17169870>`__.
 
 For version 2.5.10:
 
-.. [2] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.17091854 <https://doi.org/10.5281/zenodo.17091854>`__.
+.. [3] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.17091854 <https://doi.org/10.5281/zenodo.17091854>`__.
 
 For version 2.5.9:
 
-.. [3] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15474561 <https://doi.org/10.5281/zenodo.15474561>`__.
+.. [4] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15474561 <https://doi.org/10.5281/zenodo.15474561>`__.
 
 For version 2.5.8:
 
-.. [4] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15090637 <https://doi.org/10.5281/zenodo.15090637>`__.
+.. [5] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15090637 <https://doi.org/10.5281/zenodo.15090637>`__.
 
 For version 2.5.7:
 
-.. [5] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15075223 <https://doi.org/10.5281/zenodo.15075223>`__.
+.. [6] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15075223 <https://doi.org/10.5281/zenodo.15075223>`__.
 
 For versions 2.5.1-2.5.6:
 
-.. [6] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2022) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.7193351 <https://doi.org/10.5281/zenodo.7193351>`__.
+.. [7] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2022) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.7193351 <https://doi.org/10.5281/zenodo.7193351>`__.
 
 For version 2.4:
 
-.. [7] Charl Linssen, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2021) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.5768597 <https://doi.org/10.5281/zenodo.5768597>`__.
+.. [8] Charl Linssen, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2021) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.5768597 <https://doi.org/10.5281/zenodo.5768597>`__.
 
 For versions 2.3, 2.2 and 2.1:
 
-.. [8] Charl Linssen, Shraddha Jain, Abigail Morrison and Jochen M. Eppler (2020) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.4245012 <https://doi.org/10.5281/zenodo.4245012>`__.
+.. [9] Charl Linssen, Shraddha Jain, Abigail Morrison and Jochen M. Eppler (2020) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.4245012 <https://doi.org/10.5281/zenodo.4245012>`__.
 
 For version 2.0:
 
-.. [9] Charl Linssen, Abigail Morrison and Jochen M. Eppler (2020) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.3822082 <https://doi.org/10.5281/zenodo.3822082>`__.
+.. [10] Charl Linssen, Abigail Morrison and Jochen M. Eppler (2020) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.3822082 <https://doi.org/10.5281/zenodo.3822082>`__.
 
 
 References
 ----------
 
-.. [10] Inga Blundell, Dimitri Plotnikov, Jochen Martin Eppler and Abigail Morrison (2018) **Automatically selecting a suitable integration scheme for systems of differential equations in neuron models.** Front. Neuroinform. `doi:10.3389/fninf.2018.00050 <https://doi.org/10.3389/fninf.2018.00050>`__.
+.. [11] Inga Blundell, Dimitri Plotnikov, Jochen Martin Eppler and Abigail Morrison (2018) **Automatically selecting a suitable integration scheme for systems of differential equations in neuron models.** Front. Neuroinform. `doi:10.3389/fninf.2018.00050 <https://doi.org/10.3389/fninf.2018.00050>`__.
 
 
 Acknowledgements

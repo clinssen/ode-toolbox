@@ -102,9 +102,10 @@ class SingularityDetection:
         """
         for val in sympy.flatten(A):
             if isinstance(val, float) or isinstance(val, int) or isinstance(val, sympy.core.numbers.Number):
+                # a number is always defined under substitution
                 continue
 
-            expr_sub = val.copy()
+            expr_sub = val
             if isinstance(cond, set):
                 for _cond in cond:
                     expr_sub = expr_sub.subs(_cond.lhs, _cond.rhs)
@@ -126,19 +127,19 @@ class SingularityDetection:
         return filt_cond
 
     @staticmethod
-    def _generate_singularity_conditions(P: sympy.Matrix) -> List[Dict[sympy.core.expr.Expr, sympy.core.expr.Expr]]:
+    def _generate_singularity_conditions(P: sympy.Matrix) -> Set[Dict[sympy.core.expr.Expr, sympy.core.expr.Expr]]:
         r"""
-        The function solve returns a list where each element is a dictionary. And each dictionary entry (condition: expression) corresponds to a condition at which that expression goes to zero. If the expression is quadratic, like let's say "x**2-1" then the function 'solve() returns two dictionaries in a list. Each dictionary corresponds to one solution. We are then collecting these lists in our own list called ``conditions`` and return it.
+        For each element of ``P``, find conditions under which subterms of ``expr`` of the form ``a / b`` equal infinity (in general, when b = 0).
         """
         conditions = set()
         for expr in sympy.flatten(P):
-            conds = SingularityDetection.find_singularity_conditions_in_expression_(expr)
+            conds = SingularityDetection._find_singularity_conditions_in_expression(expr)
             conditions = conditions.union(conds)
 
         return conditions
 
     @staticmethod
-    def find_singularity_conditions_in_expression_(expr: sympy.core.expr.Expr) -> Set[SymmetricEq]:
+    def _find_singularity_conditions_in_expression(expr: sympy.core.expr.Expr) -> Set[SymmetricEq]:
         r"""Find conditions under which subterms of ``expr`` of the form ``a / b`` equal infinity (in general, when b = 0)."""
         conditions = set()
 
@@ -178,7 +179,7 @@ class SingularityDetection:
             particular_solution = -b[row] / A[row, row]
             particular_solution = sympy.simplify(particular_solution)    # using _custom_update_expr() does not guarantee that an adequate number of cases will be covered
 
-            conditions = conditions.union(SingularityDetection.find_singularity_conditions_in_expression_(particular_solution))
+            conditions = conditions.union(SingularityDetection._find_singularity_conditions_in_expression(particular_solution))
 
         conditions = SingularityDetection._filter_valid_conditions(conditions, A)  # filters out the invalid conditions (invalid means those for which A is not defined)
 
