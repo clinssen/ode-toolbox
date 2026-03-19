@@ -84,8 +84,10 @@ def _is_constant_term(term, parameters: Mapping[sympy.Symbol, str] = None) -> bo
         or all([sym in parameters.keys() for sym in term.free_symbols])
 
 
-def _check_numerical_issue(var: str) -> None:
-    forbidden_vars = ["zoo", "oo", "nan", "NaN"]
+def _check_numerical_issue(var: str, check_infty: bool = True) -> None:
+    forbidden_vars = ["zoo", "nan", "NaN"]
+    if check_infty:
+        forbidden_vars.append("oo")
     stripped_var_name = str(var).strip("'")
     if stripped_var_name in forbidden_vars:
         raise NumericalIssueException("The variable \"" + stripped_var_name + "\" was found. This indicates a numerical problem while solving the system of ODEs. Please check the input for correctness (such as the presence of divisions by zero).")
