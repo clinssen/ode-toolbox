@@ -40,8 +40,11 @@ def _sympy_parse_real(expr: str, global_dict: Optional[Dict] = None, local_dict:
     assert type(expr) is str
 
     if global_dict:
-        global_dict = global_dict.copy()
+        # this is needed because sympy internally adds things to the dict passed as ``global_dict``
+        orig_global_dict = global_dict
+        global_dict = orig_global_dict.copy()
         assert not "__builtins__" in global_dict.keys()
+
     initial_parse = sympy.parsing.sympy_parser.parse_expr(expr, global_dict=global_dict, local_dict=local_dict, evaluate=evaluate)
 
     all_syms = initial_parse.free_symbols
@@ -55,6 +58,11 @@ def _sympy_parse_real(expr: str, global_dict: Optional[Dict] = None, local_dict:
         if not str(sym) in extended_local_dict_syms_as_str:
             real_sym = sympy.Symbol(str(sym), real=True)
             extended_local_dict[str(real_sym)] = real_sym
+
+    if global_dict:
+        # this is needed because sympy internally adds things to the dict passed as ``global_dict``
+        global_dict = orig_global_dict.copy()
+        assert not "__builtins__" in global_dict.keys()
 
     final_parse = sympy.parsing.sympy_parser.parse_expr(expr, global_dict=global_dict, local_dict=extended_local_dict, evaluate=evaluate)
 

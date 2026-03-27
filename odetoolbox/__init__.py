@@ -114,6 +114,7 @@ def _from_json_to_shapes(indict, parameters=None) -> Tuple[List[Shape], Dict[sym
     all_variable_symbols = []
     all_parameter_symbols = set()
     all_variable_symbols_ = set()
+
     for shape_json in indict["dynamics"]:
         shape = Shape.from_json(shape_json, parameters=parameters)
         all_variable_symbols.extend(shape.get_state_variables())
@@ -228,6 +229,7 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
         return [], SystemOfShapes.from_shapes([]), []
 
     _read_global_config(indict)
+
 
     # copy parameters from the input and make sure keys are of type sympy.Symbol
     parameters = None
