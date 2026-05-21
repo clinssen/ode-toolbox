@@ -180,7 +180,6 @@ class AnalyticIntegrator(Integrator):
             for param_name, param_expr in self.solver_dict["parameters"].items():
                 subs_dict[param_name] = param_expr
 
-        # subs_dict = {sympy.Symbol(k, real=True): v for k, v in subs_dict.items()}
         subs_dict = {sympy.Symbol(k, real=True): v if type(v) is float or isinstance(v, sympy.Expr) else _sympy_parse_real(v, global_dict=Shape._sympy_globals) for k, v in subs_dict.items()}
 
         #
