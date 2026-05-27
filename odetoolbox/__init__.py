@@ -438,7 +438,7 @@ def analysis(indict, disable_stiffness_check: bool = False, disable_analytic_sol
     r"""
     The main entry point of the ODE-toolbox API.
 
-    :param indict: Input dictionary for the analysis. For details, see https://ode-toolbox.readthedocs.io/en/master/#input
+    :param indict: Input dictionary for the analysis. For details, see https://ode-toolbox.readthedocs.io/en/main/#input
     :param disable_stiffness_check: Whether to perform stiffness checking.
     :param disable_analytic_solver: Set to True to return numerical solver recommendations, and no propagators, even for ODEs that are analytically tractable.
     :param preserve_expressions: Set to True, or a list of strings corresponding to individual variable names, to disable internal rewriting of expressions, and return same output as input expression where possible. Only applies to variables specified as first-order differential equations.
