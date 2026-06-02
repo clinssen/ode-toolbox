@@ -440,7 +440,7 @@ def analysis(indict, disable_stiffness_check: bool = False, disable_analytic_sol
     r"""
     The main entry point of the ODE-toolbox API.
 
-    :param indict: Input dictionary for the analysis. For details, see https://ode-toolbox.readthedocs.io/en/master/#input
+    :param indict: Input dictionary for the analysis. For details, see https://ode-toolbox.readthedocs.io/en/main/#input
     :param disable_stiffness_check: Whether to perform stiffness checking.
     :param disable_analytic_solver: Set to True to return numerical solver recommendations, and no propagators, even for ODEs that are analytically tractable.
     :param disable_singularity_detection: Set to True to disable detection of conditions under which numerical singularities (division by zero) could occur in the generated analytic solver. This can be useful for analytic solvers containing a large amount of conditions, which could take a long time to compute. If True, at most one analytic solver will be returned, in which numerical singularities could occur.
