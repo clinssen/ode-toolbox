@@ -24,7 +24,7 @@ In addition to continuous dynamics, discrete events can be used to model instant
 
 ODE-toolbox is intended to be run "off-line", before commencing the actual simulation. It processes a JSON encoded input of a dynamical system, and produces its output encoded as JSON.
 
-.. figure:: https://raw.githubusercontent.com/nest/ode-toolbox/master/doc/fig/ode-toolbox-flow-diagram.png
+.. figure:: https://raw.githubusercontent.com/nest/ode-toolbox/main/doc/fig/ode-toolbox-flow-diagram.png
    :alt: Flow diagram: input JSON to ODE-toolbox to output JSON
    :width: 1223px
    :height: 294px
@@ -33,7 +33,7 @@ ODE-toolbox is intended to be run "off-line", before commencing the actual simul
 
 The internal processing carried out by ODE-toolbox can be visually summarised as follows, starting from a system of ODEs and functions of time on the left, and generating propagator matrices, Jacobian (first-order) update expressions, and finally performing solver benchmarking to recommend a particular numerical solver. Each of these steps will be described in depth in the following sections.
 
-.. figure:: https://raw.githubusercontent.com/nest/ode-toolbox/master/doc/fig/ode-toolbox-flow-diagram-detailed.png
+.. figure:: https://raw.githubusercontent.com/nest/ode-toolbox/main/doc/fig/ode-toolbox-flow-diagram-detailed.png
    :alt: Detailed flow diagram
 
 ODE-toolbox is written in Python and leverages SymPy for the symbolic manipulation of equations. It was initially developed in the context of the `NESTML <https://github.com/nest/nestml>`__ project, in which the main focus was on the class of spiking neurons presently available in the `NEST <https://github.com/nest/nest-simulator>`__ simulator. It can, however, be used in a standalone fashion, and is broadly applicable to continuous-time dynamical systems as well as systems that undergo instantaneous events (such as neuronal spikes or impulsive forces).
@@ -44,17 +44,26 @@ Installation
 
 .. Attention:: To perform solver benchmarking, ODE-toolbox relies on GSL and PyGSL. Currently, the latest PyGSL release is not compatible with GSL. We recommend to use GSL 2.7 for now. This issue is being tracked at https://github.com/pygsl/pygsl/issues/62.
 
+.. Attention:: Versions of sympy before 1.14.0 can introduce numerical precision errors and very long processing times. It is recommended to use the latest sympy version available, but at least version 1.14.0.
+
 
 Prerequisites
 ~~~~~~~~~~~~~
 
 Only Python 3 is supported. ODE-toolbox depends on the Python packages SymPy, Cython, SciPy and NumPy (required), matplotlib and graphviz for visualisation (optional), and pytest for self-tests (also optional). The stiffness tester additionally depends on an installation of `PyGSL <http://pygsl.sourceforge.net/>`__. If PyGSL is not installed, the test for stiffness is skipped during the analysis of the equations.
 
-All required and optional packages can be installed by running
+All required packages can be installed by running
 
 .. code:: bash
 
     pip install -r requirements.txt
+
+Optional packages for testing can be installed by running
+
+.. code:: bash
+
+    pip install -r requirements-testing.txt
+
 
 Installing ODE-toolbox
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -67,7 +76,7 @@ To install, clone the repository, go to the root directory and then run the foll
 
 If you wish to install into your home directory, add the option :bash:`--user` to the above call.
 
-For further installation hints, please see the `GitHub Actions CI workflow file <https://github.com/nest/ode-toolbox/blob/master/.github/workflows/ode-toolbox-build.yml>`__.
+For further installation hints, please see the `GitHub Actions CI workflow file <https://github.com/nest/ode-toolbox/blob/main/.github/workflows/ode-toolbox-build.yml>`__.
 
 Testing
 ~~~~~~~
@@ -101,7 +110,7 @@ ODE-toolbox can be used in two ways:
       indict = json.load(open("tests/lorenz_attractor.json"))
       odetoolbox.analysis(indict)
 
-   See the tests (e.g. `test\_lorenz\_attractor.py <https://github.com/nest/ode-toolbox/blob/master/tests/test_lorenz_attractor.py>`__) for more examples.
+   See the tests (e.g. `test\_lorenz\_attractor.py <https://github.com/nest/ode-toolbox/blob/main/tests/test_lorenz_attractor.py>`__) for more examples.
 
 The JSON file and Python dictionary are completely equivalent in content and form, described in the :ref:`Input` section below.
 
@@ -127,16 +136,22 @@ The following flags exist:
      - Default
      - Description
    * - ``disable_analytic_solver``
-     - False
+     - :python:`False`
      - Set to True to return numerical solver recommendations, and no propagators, even for ODEs that are analytically tractable.
    * - ``disable_stiffness_check``
-     - False
+     - :python:`False`
      - Set to True to disable stiffness check.
+   * - ``disable_analytic_solver``
+     - :python:`False`
+     - Set to True to return numerical solver recommendations, and no propagators, even for ODEs that are analytically tractable.
    * - ``disable_singularity_detection``
-     - False
-     - Set to True to disable detection of conditions under which numerical singularities (division by zero) could occur.
+     - :python:`False`
+     - Set to True to disable detection of conditions under which numerical singularities (division by zero) could occur in the generated analytic solver. This can be useful for analytic solvers containing a large amount of conditions, which could take a long time to compute. If True, at most one analytic solver will be returned, in which numerical singularities could occur.
+   * - ``use_alternative_expM``
+     - :python:`False`
+     - If :python:`False`, use the sympy function ``sympy.exp`` to compute the matrix exponential. If :python:`True`, use an alternative function (see :py:func:`odetoolbox.sympy_helpers.expMt` for details). This can be useful as calls to ``sympy.exp`` can sometimes take a very large amount of time.
    * - ``preserve_expressions``
-     - False
+     - :python:`False`
      - Set to True, or a list of strings corresponding to individual variable names, to disable internal rewriting of expressions, and return same output as input expression where possible. Only applies to variables specified as first-order differential equations.
    * - ``log_level``
      - :python:`logging.WARN`
@@ -147,7 +162,7 @@ Input
 
 The JSON input dictionary that is passed to ODE-toolbox contains :ref:`dynamics <Dynamics>`, :ref:`numerical parameters <Parameters>`, and :ref:`global options <Global options>`. Documentation may optionally be provided as a string.
 
-All expressions are parsed as SymPy expressions, and subsequently simplified through :python:`sympy.simplify()`. There are several predefined symbols, such as :python:`e` and :python:`E` for Euler's number, trigonometric functions, etc. :python:`t` is assumed to represent time. The list of predefined symbols is defined in `shapes.py <https://github.com/nest/ode-toolbox/blob/master/odetoolbox/shapes.py>`_, as the static member :python:`Shape._sympy_globals`. Variable names should be chosen such that they do not conflict with the predefined symbols.
+All expressions are parsed as SymPy expressions, and subsequently simplified through :python:`sympy.simplify()`. There are several predefined symbols, such as :python:`e` and :python:`E` for Euler's number, trigonometric functions, etc. :python:`t` is assumed to represent time. The list of predefined symbols is defined in `shapes.py <https://github.com/nest/ode-toolbox/blob/main/odetoolbox/shapes.py>`_, as the static member :python:`Shape._sympy_globals`. Variable names should be chosen such that they do not conflict with the predefined symbols.
 
 Dynamics
 ~~~~~~~~
@@ -380,14 +395,47 @@ ODE-toolbox will return a list of solvers. **Each solver has the following keys:
 - :python:`"initial_values"`\ : a dictionary that maps each variable symbol (in string form) to a SymPy expression. For example :python:`"g" : "e / tau"`.
 - :python:`"parameters"`\ : only present when parameters were supplied in the input. The input parameters are copied into the output for convenience.
 
-**Analytic solvers have the following extra entries:**
-
--  :python:`"update_expressions"`\ : a dictionary that maps each variable symbol (in string form) to a SymPy propagator expression. The interpretation of an entry :python:`"g" : "g * __P__g__g + h * __P__g__h"` is that, at each integration timestep, when the state of the system needs to be updated from the current time :math:`t` to the next step :math:`t + \Delta t`, we assign the new value :python:`"g * __P__g__g + h * __P__g__h"` to the variable :python:`g`. Note that the expression is always evaluated at the old time :math:`t`; this means that when more than one state variable needs to be updated, all of the expressions have to be calculated before updating any of the variables.
--  :python:`propagators`\ : a dictionary that maps each propagator matrix entry to its defining expression; for example :python:`"__P__g__h" : "__h*exp(-__h/tau)"`
-
 **Numeric solvers have the following extra entries:**
 
 - :python:`"update_expressions"`\ : a dictionary that maps each variable symbol (in string form) to a SymPy expression that is its Jacobian, that is, for a symbol :math:`x`, the expression is equal to :math:`\frac{\delta x}{\delta t}`.
+
+**Analytic solvers have the following extra entries:**
+
+In case of a solver without conditions:
+
+- :python:`"update_expressions"`\ : a dictionary that maps each variable symbol (in string form) to a SymPy propagator expression. The interpretation of an entry :python:`"g" : "g * __P__g__g + h * __P__g__h"` is that, at each integration timestep, when the state of the system needs to be updated from the current time :math:`t` to the next step :math:`t + \Delta t`, we assign the new value :python:`"g * __P__g__g + h * __P__g__h"` to the variable :python:`g`. Note that the expression is always evaluated at the old time :math:`t`; this means that when more than one state variable needs to be updated, all of the expressions have to be calculated before updating any of the variables.
+- :python:`propagators`\ : a dictionary that maps each propagator matrix entry to its defining expression; for example :python:`"__P__g__h" : "__h*exp(-__h/tau)"`
+
+In some cases, parameter choices of the input can lead to numerical singularities (divisions by zero; see the sections :ref:`Computing the propagator matrix` and :ref:`Computing the update expressions` for more details). In this case, certain propagators and update expressions are only valid under certain conditions. These conditions, and the propagators and update expressions for each condition, are returned as follows:
+
+- :python:`"conditions"`\ : a dictionary that maps conditional expressions (as strings) to a nested dictionary containing the keys :python:`"update_expressions"` and :python:`"propagators"` as described in the previous paragraph. The default solver (in case none of the other conditions hold) is indicated by the key :python:`"default"`\ .
+
+  For example, if the condition :math:`d=-p` will cause a singularity in the update expression for the state variable :python:`z`, two separate solvers are returned, one for the condition :math:`d=-p`, and another for the default ("otherwise") condition:
+
+  .. code:: python
+
+     {
+         "conditions": {
+             "(d == -p)": {
+                 "propagators": {
+                     "__P__z__z": "1"
+                 },
+                 "update_expressions": {
+                     "z": "__P__z__z*z + 1.5*__h*p/tau_z"
+                 }
+             },
+             "default": {
+                 "propagators": {
+                     "__P__z__z": "exp(-__h*(d + p)/tau_z)"
+                 },
+                 "update_expressions": {
+                     "z": "(__P__z__z*(0.5*d - p + z*(d + p)) - 0.5*d + p)/(d + p)"
+                 }
+             }
+         }
+     }
+
+  In general, there can be from two to any number of conditions. Conditions can involve boolean logic through the ``"&&"`` symbol for logical AND, ``"||"`` for logical OR, and the use of parentheses. The equality symbol, separating the left- and right-hand sides of the comparison, is written as ``"=="``.
 
 
 Analytic solver generation
@@ -401,21 +449,21 @@ During processing, a dependency graph is generated, where each node corresponds 
 
 .. raw:: html
 
-   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/master/doc/fig/eq_analysis_0.png" alt="Dependency graph" width="620" height="283">
+   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/main/doc/fig/eq_analysis_0.png" alt="Dependency graph" width="620" height="283">
 
 
 Each variable is subsequently marked according to whether it can, by itself, be analytically solved. This is indicated by a green colour.
 
 .. raw:: html
 
-   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/master/doc/fig/eq_analysis_1.png" alt="Dependency graph with membrane potential and excitatory and gap junction kernels marked green" width="720" height="383">
+   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/main/doc/fig/eq_analysis_1.png" alt="Dependency graph with membrane potential and excitatory and gap junction kernels marked green" width="720" height="383">
 
 
 In the next step, variables are unmarked as analytically solvable if they depend on other variables that are themselves not analytically solvable. In this example, ``V_rel`` is unmarked as it depends on the nonlinear excitatory kernel.
 
 .. raw:: html
 
-   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/master/doc/fig/eq_analysis_2.png" alt="Dependency graph with membrane potential and excitatory and gap junction kernels marked green" width="720" height="383">
+   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/main/doc/fig/eq_analysis_2.png" alt="Dependency graph with membrane potential and excitatory and gap junction kernels marked green" width="720" height="383">
 
 
 The analytic solution for all green nodes is computed in the form of a propagator matrix. See the section :ref:`Computing the propagator matrix` for more details.
@@ -462,7 +510,7 @@ Initially, individual expressions are read from JSON into Shape instances. Subse
 Converting direct functions of time
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The aim is to find a representation of the form :math:`a_0 f + a_1 f' + ... + a_{n-1} f^{(n-1)} = f^{(n)}`, with :math:`a_i\in\mathbb{R}\,\forall 0 \leq i < n`. The approach taken here [10]_ works by evaluating the function :math:`f(t)` at times :math:`t = t_0, t_1, \ldots t_n`, which results in :math:`n` equations, that we can use to solve for the coefficients of the potentially :math:`n`-dimensional dynamical system.
+The aim is to find a representation of the form :math:`a_0 f + a_1 f' + ... + a_{n-1} f^{(n-1)} = f^{(n)}`, with :math:`a_i\in\mathbb{R}\,\forall 0 \leq i < n`. The approach taken here [11]_ works by evaluating the function :math:`f(t)` at times :math:`t = t_0, t_1, \ldots t_n`, which results in :math:`n` equations, that we can use to solve for the coefficients of the potentially :math:`n`-dimensional dynamical system.
 
 1. Begin by assuming that the dynamical system is of order :math:`n`.
 2. Find timepoints :math:`t = t_0, t_1, ..., t_n` such that :math:`f(t_i) \neq 0 \forall 0 \leq i \leq n`. The times can be selected at random.
@@ -484,7 +532,7 @@ The propagator matrix :math:`\mathbf{P}` is derived from the system matrix by ma
 
 If the imaginary unit :math:`i` is found in any of the entries in :math:`\mathbf{P}`, fail. This usually indicates an unstable (diverging) dynamical system. Double-check the dynamical equations.
 
-In some cases, elements of :math:`\mathbf{P}` may contain fractions that have a factor of the form :python:`param1 - param2` in their denominator. If at a later stage, the numerical value of :python:`param1` is chosen equal to that of :python:`param2`, a numerical singularity (division by zero) occurs. To avoid this issue, it is necessary to eliminate either :python:`param1` or :python:`param2` in the input, before the propagator matrix is generated. ODE-toolbox will detect conditions (in this example, :python:`param1 = param2`) under which these singularities can occur. If any conditions were found, log warning messages will be emitted during the computation of the propagator matrix. A condition is only reported if the system matrix :math:`A` is defined under that condition, ensuring that only those conditions are returned that are purely an artifact of the propagator computation.
+In some cases, elements of :math:`\mathbf{P}` may contain fractions that have a factor of the form :python:`param1 - param2` in their denominator. If at a later stage, the numerical value of :python:`param1` is chosen equal to that of :python:`param2`, a numerical singularity (division by zero) occurs. To avoid this issue, it is necessary to eliminate either :python:`param1` or :python:`param2` in the input, before the propagator matrix is generated. ODE-toolbox will detect conditions (in this example, :python:`param1 = param2`) under which these singularities can occur. In case a potential division by zero is detected, separate, conditional solvers are generated, so that a valid solver can be selected (for the given choice of parameter values) during numerical integration. Internally, conditions are generated based on `sympy.calculus.singularities.singularities <https://docs.sympy.org/latest/modules/calculus/index.html#sympy.calculus.singularities.singularities>`_.
 
 To speed up processing, the final system matrix :math:`\mathbf{A}` is rewritten as a block-diagonal matrix :math:`\mathbf{A} = \text{diag}(\mathbf{A}_1, \mathbf{A}_2, \dots, \mathbf{A}_k)`, where each of :math:`\mathbf{A}_1, \mathbf{A}_2, \dots, \mathbf{A}_k` is square. Then, the propagator matrix is computed for each individual block separately, making use of the following identity:
 
@@ -539,7 +587,7 @@ the update equation is:
 
    x \leftarrow P (x - 1.618) + 1.618
 
-In some cases, elements of :math:`\mathbf{A}` may contain terms that involve a parameter of the system to be integrated. If at a later stage, the numerical value of these parameters is chosen equal to zero, a numerical singularity (division by zero) occurs. To avoid this issue, it is necessary to invoke ODE-toolbox separately to generate an analytic solver for the special case that the value of :math:`\mathbf{A}` becomes equal to zero for inhomogeneous equations. ODE-toolbox will detect the conditions (for instance, :python:`param1 - param2 = 0`) under which these singularities occur. If any conditions were found, log warning messages will be emitted during the computation of the analytic solver.
+In some cases, elements of :math:`\mathbf{A}` may contain terms that involve a parameter of the system to be integrated. If at a later stage, the numerical value of these parameters is chosen equal to zero, a numerical singularity (division by zero) occurs. ODE-toolbox will detect the conditions (for instance, :python:`param1 - param2 = 0`) under which these singularities occur. In case potential division by zero is detected, separate, conditional solvers are generated, so that a valid solver can be selected (for the given choice of parameter values) during numerical integration.
 
 
 Working with large expressions
@@ -553,24 +601,24 @@ Examples
 
 Several example input files can be found under ``tests/*.json``. Some highlights:
 
--  `Lorenz attractor <https://github.com/nest/ode-toolbox/blob/master/tests/lorenz_attractor.json>`__
--  `Morris-Lecar neuron model <https://github.com/nest/ode-toolbox/blob/master/tests/morris_lecar.json>`__
--  `Integrate-and-fire neuron with alpha-kernel postsynaptic currents <https://github.com/nest/ode-toolbox/blob/master/tests/mixed_analytic_numerical_with_stiffness.json>`__, including Poisson spike generator for stiffness test
--  `Integrate-and-fire neuron with alpha-kernel postsynaptic conductances <https://github.com/nest/ode-toolbox/blob/master/tests/iaf_cond_alpha.json>`__
--  `Canonical, two-dimensional stiff system <https://github.com/nest/ode-toolbox/blob/master/tests/stiff_system.json>`__ Example 11.57 from Dahmen, W., and Reusken, A. (2005). Numerik fuer Naturwissenschaftler. Berlin: Springer
+-  `Lorenz attractor <https://github.com/nest/ode-toolbox/blob/main/tests/lorenz_attractor.json>`__
+-  `Morris-Lecar neuron model <https://github.com/nest/ode-toolbox/blob/main/tests/morris_lecar.json>`__
+-  `Integrate-and-fire neuron with alpha-kernel postsynaptic currents <https://github.com/nest/ode-toolbox/blob/main/tests/mixed_analytic_numerical_with_stiffness.json>`__, including Poisson spike generator for stiffness test
+-  `Integrate-and-fire neuron with alpha-kernel postsynaptic conductances <https://github.com/nest/ode-toolbox/blob/main/tests/iaf_cond_alpha.json>`__
+-  `Canonical, two-dimensional stiff system <https://github.com/nest/ode-toolbox/blob/main/tests/stiff_system.json>`__ Example 11.57 from Dahmen, W., and Reusken, A. (2005). Numerik fuer Naturwissenschaftler. Berlin: Springer
 
 
 Stiffness testing
 ~~~~~~~~~~~~~~~~~
 
-This example correponds to the unit test in `test_stiffness.py <https://github.com/nest/ode-toolbox/blob/master/tests/test_stiffness.py>`_, which simulates the Morris-Lecar neuron model in `morris_lecar.json <https://github.com/nest/ode-toolbox/blob/master/tests/morris_lecar.json>`_. The plot shows the two state variables of the model, ``V`` and ``W``, while in the lower panel the solver timestep recommendation is plotted at each step. This recommendation is returned by each GSL solver. Note that the ``avg_step_size_ratio`` selection criterion parameter refers to the *average* of this value across the entire simulation period.
+This example correponds to the unit test in `test_stiffness.py <https://github.com/nest/ode-toolbox/blob/main/tests/test_stiffness.py>`_, which simulates the Morris-Lecar neuron model in `morris_lecar.json <https://github.com/nest/ode-toolbox/blob/main/tests/morris_lecar.json>`_. The plot shows the two state variables of the model, ``V`` and ``W``, while in the lower panel the solver timestep recommendation is plotted at each step. This recommendation is returned by each GSL solver. Note that the ``avg_step_size_ratio`` selection criterion parameter refers to the *average* of this value across the entire simulation period.
 
 .. raw:: html
 
-   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/master/doc/fig/stiffness_example.png" alt="timeseries plots of V, W, and recommended timestep" width="620" height="434">
+   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/main/doc/fig/stiffness_example.png" alt="timeseries plots of V, W, and recommended timestep" width="620" height="434">
 
 
-`test_stiffness.py <https://github.com/nest/ode-toolbox/blob/master/tests/test_stiffness.py>`_ tests that for a tighter integration accuracy, the solver recommendation for this example changes from "explicit" (non-stiff) to "implicit" (stiff).
+`test_stiffness.py <https://github.com/nest/ode-toolbox/blob/main/tests/test_stiffness.py>`_ tests that for a tighter integration accuracy, the solver recommendation for this example changes from "explicit" (non-stiff) to "implicit" (stiff).
 
 
 From ODE-toolbox results dictionary to simulation
@@ -578,18 +626,18 @@ From ODE-toolbox results dictionary to simulation
 
 ODE-toolbox provides two classes that can perform numerical simulation on the basis of the results dictionary returned by ODE-toolbox: :py:class:`~odetoolbox.analytic_integrator.AnalyticIntegrator`, which simulates on the basis of propagators and returns precise values, and :py:class:`~odetoolbox.mixed_integrator.MixedIntegrator`, which in addition performs numerical integration using GSL (for example, using :python:`pygsl.odeiv.step_rk4` or :python:`pygsl.odeiv.step_bsimp`). These integrators both use :python:`sympy.parsing.sympy_parser` to parse the expression strings from the ODE-toolbox results dictionary, and then use the SymPy expression :python:`evalf()` method to evaluate to a floating-point value.
 
-The file `test_analytic_solver_integration.py <https://github.com/nest/ode-toolbox/blob/master/tests/test_analytic_solver_integration.py>`_ contains an integration test that uses :py:class:`~odetoolbox.analytic_integrator.AnalyticIntegrator` and the propagators returned from ODE-toolbox to simulate a simple dynamical system; in this case, an integrate-and-fire neuron with alpha-shaped postsynaptic currents. It compares the obtained result to a handwritten solution, which is simulated analytically and numerically independent of ODE-toolbox. The following results figure shows perfect agreement between the three simulation methods:
+The file `test_analytic_solver_integration.py <https://github.com/nest/ode-toolbox/blob/main/tests/test_analytic_solver_integration.py>`_ contains an integration test that uses :py:class:`~odetoolbox.analytic_integrator.AnalyticIntegrator` and the propagators returned from ODE-toolbox to simulate a simple dynamical system; in this case, an integrate-and-fire neuron with alpha-shaped postsynaptic currents. It compares the obtained result to a handwritten solution, which is simulated analytically and numerically independent of ODE-toolbox. The following results figure shows perfect agreement between the three simulation methods:
 
 .. raw:: html
 
-   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/master/doc/fig/test_analytic_solver_integration.png" alt="V_rel, i_ex and i_ex' timeseries plots" width="620" height="465">
+   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/main/doc/fig/test_analytic_solver_integration.png" alt="V_rel, i_ex and i_ex' timeseries plots" width="620" height="465">
 
 
-The file `test_mixed_integrator_numeric.py <https://github.com/nest/ode-toolbox/blob/master/tests/test_mixed_integrator_numeric.py>`_ contains an integration test, that uses :py:class:`~odetoolbox.mixed_integrator.MixedIntegrator` and the results dictionary from ODE-toolbox to simulate the same integrate-and-fire neuron with alpha-shaped postsynaptic response, but purely numerically (without the use of propagators). In contrast to the :py:class:`~odetoolbox.analytic_integrator.AnalyticIntegrator`, enforcement of upper- and lower bounds is supported, as can be seen in the behaviour of :math:`V_m` in the plot that is generated:
+The file `test_mixed_integrator_numeric.py <https://github.com/nest/ode-toolbox/blob/main/tests/test_mixed_integrator_numeric.py>`_ contains an integration test, that uses :py:class:`~odetoolbox.mixed_integrator.MixedIntegrator` and the results dictionary from ODE-toolbox to simulate the same integrate-and-fire neuron with alpha-shaped postsynaptic response, but purely numerically (without the use of propagators). In contrast to the :py:class:`~odetoolbox.analytic_integrator.AnalyticIntegrator`, enforcement of upper- and lower bounds is supported, as can be seen in the behaviour of :math:`V_m` in the plot that is generated:
 
 .. raw:: html
 
-   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/master/doc/fig/test_mixed_integrator_numeric.png" alt="g_in, g_in__d, g_ex, g_ex__d, V_m timeseries plots" width="620" height="451">
+   <img src="https://raw.githubusercontent.com/nest/ode-toolbox/main/doc/fig/test_mixed_integrator_numeric.png" alt="g_in, g_in__d, g_ex, g_ex__d, V_m timeseries plots" width="620" height="451">
 
 
 API documentation
@@ -613,47 +661,51 @@ Citing ODE-toolbox
 
 If you use ODE-toolbox in your work, please cite it depending on the version you are using. (It is recommended to use the latest release version whenever possible.)
 
+For version 2.5.12:
+
+.. [1] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2026) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.18341252 <https://doi.org/10.5281/zenodo.18341252>`__.
+
 For version 2.5.11:
 
-.. [1] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.17169870 <https://doi.org/10.5281/zenodo.17169870>`__.
+.. [2] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.17169870 <https://doi.org/10.5281/zenodo.17169870>`__.
 
 For version 2.5.10:
 
-.. [2] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.17091854 <https://doi.org/10.5281/zenodo.17091854>`__.
+.. [3] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.17091854 <https://doi.org/10.5281/zenodo.17091854>`__.
 
 For version 2.5.9:
 
-.. [3] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15474561 <https://doi.org/10.5281/zenodo.15474561>`__.
+.. [4] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15474561 <https://doi.org/10.5281/zenodo.15474561>`__.
 
 For version 2.5.8:
 
-.. [4] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15090637 <https://doi.org/10.5281/zenodo.15090637>`__.
+.. [5] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15090637 <https://doi.org/10.5281/zenodo.15090637>`__.
 
 For version 2.5.7:
 
-.. [5] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15075223 <https://doi.org/10.5281/zenodo.15075223>`__.
+.. [6] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2025) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.15075223 <https://doi.org/10.5281/zenodo.15075223>`__.
 
 For versions 2.5.1-2.5.6:
 
-.. [6] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2022) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.7193351 <https://doi.org/10.5281/zenodo.7193351>`__.
+.. [7] Charl Linssen, Shraddha Jain, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2022) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.7193351 <https://doi.org/10.5281/zenodo.7193351>`__.
 
 For version 2.4:
 
-.. [7] Charl Linssen, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2021) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.5768597 <https://doi.org/10.5281/zenodo.5768597>`__.
+.. [8] Charl Linssen, Pooja N. Babu, Abigail Morrison and Jochen M. Eppler (2021) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.5768597 <https://doi.org/10.5281/zenodo.5768597>`__.
 
 For versions 2.3, 2.2 and 2.1:
 
-.. [8] Charl Linssen, Shraddha Jain, Abigail Morrison and Jochen M. Eppler (2020) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.4245012 <https://doi.org/10.5281/zenodo.4245012>`__.
+.. [9] Charl Linssen, Shraddha Jain, Abigail Morrison and Jochen M. Eppler (2020) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.4245012 <https://doi.org/10.5281/zenodo.4245012>`__.
 
 For version 2.0:
 
-.. [9] Charl Linssen, Abigail Morrison and Jochen M. Eppler (2020) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.3822082 <https://doi.org/10.5281/zenodo.3822082>`__.
+.. [10] Charl Linssen, Abigail Morrison and Jochen M. Eppler (2020) **ODE-toolbox: Automatic selection and generation of integration schemes for systems of ordinary differential equations.** Zenodo. `doi:10.5281/zenodo.3822082 <https://doi.org/10.5281/zenodo.3822082>`__.
 
 
 References
 ----------
 
-.. [10] Inga Blundell, Dimitri Plotnikov, Jochen Martin Eppler and Abigail Morrison (2018) **Automatically selecting a suitable integration scheme for systems of differential equations in neuron models.** Front. Neuroinform. `doi:10.3389/fninf.2018.00050 <https://doi.org/10.3389/fninf.2018.00050>`__.
+.. [11] Inga Blundell, Dimitri Plotnikov, Jochen Martin Eppler and Abigail Morrison (2018) **Automatically selecting a suitable integration scheme for systems of differential equations in neuron models.** Front. Neuroinform. `doi:10.3389/fninf.2018.00050 <https://doi.org/10.3389/fninf.2018.00050>`__.
 
 
 Acknowledgements
@@ -667,9 +719,9 @@ This software was developed in part or in whole in the Human Brain Project, fund
 
 This project has received funding from the European Union's Horizon Europe Programme under the Specific Grant Agreement No. 101147319 (EBRAINS 2.0 Project).
 
-.. |Build status| image:: https://github.com/nest/ode-toolbox/actions/workflows/ode-toolbox-build.yml/badge.svg?branch=master
+.. |Build status| image:: https://github.com/nest/ode-toolbox/actions/workflows/ode-toolbox-build.yml/badge.svg?branch=main
    :target: https://github.com/nest/ode-toolbox/actions
-.. |Testing coverage| image:: https://codecov.io/gh/nest/ode-toolbox/branch/master/graph/badge.svg
+.. |Testing coverage| image:: https://codecov.io/gh/nest/ode-toolbox/branch/main/graph/badge.svg
    :target: https://codecov.io/gh/nest/ode-toolbox
 
 

@@ -27,7 +27,7 @@ import sympy
 from sympy.core.expr import Expr as SympyExpr
 
 from .config import Config
-from .sympy_helpers import _check_numerical_issue, _check_forbidden_name, _find_in_matrix, _is_zero, _is_sympy_type, SympyPrinter
+from .sympy_helpers import _check_numerical_issue, _check_forbidden_name, _find_in_matrix, _is_zero, _is_sympy_type, SympyPrinter, _sympy_parse_real
 from .system_of_shapes import SystemOfShapes
 from .shapes import MalformedInputException, Shape
 
@@ -115,6 +115,7 @@ def _from_json_to_shapes(indict, parameters=None) -> Tuple[List[Shape], Dict[sym
     all_variable_symbols = []
     all_parameter_symbols = set()
     all_variable_symbols_ = set()
+
     for shape_json in indict["dynamics"]:
         shape = Shape.from_json(shape_json, parameters=parameters)
         all_variable_symbols.extend(shape.get_state_variables())
@@ -127,6 +128,7 @@ def _from_json_to_shapes(indict, parameters=None) -> Tuple[List[Shape], Dict[sym
     # validate input for forbidden names
     for var in set(all_variable_symbols) | all_parameter_symbols:
         _check_forbidden_name(var)
+        assert var.is_real
 
     # validate parameters
     for param in all_parameter_symbols:
@@ -182,7 +184,33 @@ def _get_all_first_order_variables(indict) -> Iterable[str]:
     return variable_names
 
 
-def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShapes, List[Shape]]:
+def symbol_appears_in_any_expr(param_name, solver_json) -> bool:
+    if "update_expressions" in solver_json.keys():
+        for sym, expr in solver_json["update_expressions"].items():
+            if param_name in [str(sym) for sym in list(expr.atoms())]:
+                return True
+
+    if "propagators" in solver_json.keys():
+        for sym, expr in solver_json["propagators"].items():
+            if param_name in [str(sym) for sym in list(expr.atoms())]:
+                return True
+
+    if "conditions" in solver_json.keys():
+        for conditional_solver_json in solver_json["conditions"].values():
+            if "update_expressions" in conditional_solver_json.keys():
+                for sym, expr in conditional_solver_json["update_expressions"].items():
+                    if param_name in [str(sym) for sym in list(expr.atoms())]:
+                        return True
+
+            if "propagators" in conditional_solver_json.keys():
+                for sym, expr in solver_json["propagators"].items():
+                    if param_name in [str(sym) for sym in list(expr.atoms())]:
+                        return True
+
+    return False
+
+
+def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False, use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShapes, List[Shape]]:
     r"""
     Like analysis(), but additionally returns ``shape_sys`` and ``shapes``.
 
@@ -202,19 +230,19 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
 
     _read_global_config(indict)
 
+
     # copy parameters from the input and make sure keys are of type sympy.Symbol
     parameters = None
     if "parameters" in indict.keys():
         parameters = {}
         for k, v in indict["parameters"].items():
             if type(k) is str:
-                parameters[sympy.Symbol(k)] = v
+                parameters[sympy.Symbol(k, real=True)] = v
             else:
                 assert type(k) is sympy.Symbol
                 parameters[k] = v
 
             _check_forbidden_name(k)
-
 
     #
     #   create Shapes and SystemOfShapes
@@ -236,7 +264,6 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
     logging.getLogger(__name__).info("b = " + str(shape_sys.b_))
     logging.getLogger(__name__).info("c = " + str(shape_sys.c_))
 
-
     #
     #   generate analytical solutions (propagators) where possible
     #
@@ -251,10 +278,9 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
     if analytic_syms:
         logging.getLogger(__name__).info("Generating propagators for the following symbols: " + ", ".join([str(k) for k in analytic_syms]))
         sub_sys = shape_sys.get_sub_system(analytic_syms)
-        analytic_solver_json = sub_sys.generate_propagator_solver(disable_singularity_detection=disable_singularity_detection)
+        analytic_solver_json = sub_sys.generate_propagator_solver(disable_singularity_detection=disable_singularity_detection, use_alternative_expM=use_alternative_expM)
         analytic_solver_json["solver"] = "analytical"
         solvers_json.append(analytic_solver_json)
-
 
     #
     #   generate numerical solvers for the remainder
@@ -293,7 +319,6 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
 
         solvers_json.append(solver_json)
 
-
     #
     #   copy the initial values from the input to the output for convenience; convert to numeric values
     #
@@ -301,7 +326,7 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
     for solver_json in solvers_json:
         solver_json["initial_values"] = {}
         for shape in shapes:
-            all_shape_symbols = [str(sympy.Symbol(str(shape.symbol) + Config().differential_order_symbol * i)) for i in range(shape.order)]
+            all_shape_symbols = [str(sympy.Symbol(str(shape.symbol) + Config().differential_order_symbol * i, real=True)) for i in range(shape.order)]
             for sym in all_shape_symbols:
                 if sym in solver_json["state_variables"]:
                     iv_expr = shape.get_initial_value(sym.replace(Config().differential_order_symbol, "'"))
@@ -320,35 +345,21 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
             solver_json["parameters"] = {}
             for param_name, param_expr in indict["parameters"].items():
                 # only make parameters appear in a solver if they are actually used there
-                symbol_appears_in_any_expr = False
-                if "update_expressions" in solver_json.keys():
-                    for sym, expr in solver_json["update_expressions"].items():
-                        if param_name in [str(sym) for sym in list(expr.atoms())]:
-                            symbol_appears_in_any_expr = True
-                            break
+                if symbol_appears_in_any_expr(sym, solver_json):
+                    sympy_expr = _sympy_parse_real(param_expr, global_dict=Shape._sympy_globals)
 
-                if "propagators" in solver_json.keys():
-                    for sym, expr in solver_json["propagators"].items():
-                        if param_name in [str(sym) for sym in list(expr.atoms())]:
-                            symbol_appears_in_any_expr = True
-                            break
-
-                if symbol_appears_in_any_expr:
-                    sympy_expr = sympy.parsing.sympy_parser.parse_expr(param_expr, global_dict=Shape._sympy_globals)
-
-                    # validate output for numerical problems
+                    # validate output for numerical problems -- note that we skip checking for infinity here as some parameters (like "V_max") could be legitimately defined as infinity
                     for var in sympy_expr.atoms():
-                        _check_numerical_issue(var)
+                        _check_numerical_issue(var, check_infty=False)
 
                     # convert to numeric value
                     sympy_expr = sympy_expr.n()
 
-                    # validate output for numerical problems
+                    # validate output for numerical problems -- note that we skip checking for infinity here as some parameters (like "V_max") could be legitimately defined as infinity
                     for var in sympy_expr.atoms():
-                        _check_numerical_issue(var)
+                        _check_numerical_issue(var, check_infty=False)
 
                     solver_json["parameters"][param_name] = str(sympy_expr)
-
 
     #
     #   convert expressions from sympy to string
@@ -388,6 +399,26 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
             for sym, expr in solver_json["propagators"].items():
                 solver_json["propagators"][sym] = str(expr)
 
+        if "conditions" in solver_json.keys():
+            for cond, cond_solver in solver_json["conditions"].items():
+                if "update_expressions" in cond_solver:
+                    for sym, expr in cond_solver["update_expressions"].items():
+                        cond_solver["update_expressions"][sym] = str(expr)
+
+                        if preserve_expressions and sym in preserve_expressions:
+                            if "analytic" in solver_json["solver"]:
+                                logging.warning("Not preserving expression for variable \"" + sym + "\" as it is solved by propagator solver")
+                                continue
+
+                            logging.info("Preserving expression for variable \"" + sym + "\"")
+                            var_def_str = _find_variable_definition(indict, sym, order=1)
+                            assert var_def_str is not None
+                            cond_solver["update_expressions"][sym] = var_def_str.replace("'", Config().differential_order_symbol)
+
+                if "propagators" in cond_solver:
+                    for sym, expr in cond_solver["propagators"].items():
+                        cond_solver["propagators"][sym] = str(expr)
+
     logging.getLogger(__name__).info("Final output result:")
     logging.getLogger(__name__).info(json.dumps(solvers_json, indent=4, sort_keys=True))
 
@@ -406,13 +437,15 @@ def _init_logging(log_level: Union[str, int] = logging.WARNING):
     logger.setLevel(log_level)
 
 
-def analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> List[Dict]:
+def analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False, use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> List[Dict]:
     r"""
     The main entry point of the ODE-toolbox API.
 
-    :param indict: Input dictionary for the analysis. For details, see https://ode-toolbox.readthedocs.io/en/master/#input
+    :param indict: Input dictionary for the analysis. For details, see https://ode-toolbox.readthedocs.io/en/main/#input
     :param disable_stiffness_check: Whether to perform stiffness checking.
     :param disable_analytic_solver: Set to True to return numerical solver recommendations, and no propagators, even for ODEs that are analytically tractable.
+    :param disable_singularity_detection: Set to True to disable detection of conditions under which numerical singularities (division by zero) could occur in the generated analytic solver. This can be useful for analytic solvers containing a large amount of conditions, which could take a long time to compute. If True, at most one analytic solver will be returned, in which numerical singularities could occur.
+    :param use_alternative_expM: If :python:`False`, use the sympy function ``sympy.exp`` to compute the matrix exponential. If :python:`True`, use an alternative function (see :py:func:`odetoolbox.sympy_helpers.expMt` for details). This can be useful as calls to ``sympy.exp`` can sometimes take a very large amount of time.
     :param preserve_expressions: Set to True, or a list of strings corresponding to individual variable names, to disable internal rewriting of expressions, and return same output as input expression where possible. Only applies to variables specified as first-order differential equations.
     :param log_level: Sets the logging threshold. Logging messages which are less severe than ``log_level`` will be ignored. Log levels can be provided as an integer or string, for example "INFO" (more messages) or "WARN" (fewer messages). For a list of valid logging levels, see https://docs.python.org/3/library/logging.html#logging-levels
 
@@ -422,6 +455,7 @@ def analysis(indict, disable_stiffness_check: bool = False, disable_analytic_sol
                         disable_stiffness_check=disable_stiffness_check,
                         disable_analytic_solver=disable_analytic_solver,
                         disable_singularity_detection=disable_singularity_detection,
+                        use_alternative_expM=use_alternative_expM,
                         preserve_expressions=preserve_expressions,
                         log_level=log_level)
     return d

@@ -22,6 +22,8 @@
 import math
 import numpy as np
 import os
+import pytest
+import semver
 import sympy
 import sympy.parsing.sympy_parser
 import scipy
@@ -44,6 +46,11 @@ from odetoolbox.analytic_integrator import AnalyticIntegrator
 from tests.test_utils import _open_json
 
 
+sympy_version = semver.Version.parse(sympy.__version__)
+SYMPY_VERSION_TOO_OLD = (sympy_version.major < 1) or (sympy_version.major == 1 and sympy_version.minor < 12)
+
+
+@pytest.mark.skipif(SYMPY_VERSION_TOO_OLD, reason="Older versions of sympy hang on this test")
 class TestAnalyticSolverIntegration:
     r"""
     Numerical comparison between ode-toolbox calculated propagators, hand-calculated propagators expressed in Python, and numerical integration, for the iaf_cond_alpha neuron.
@@ -97,7 +104,8 @@ class TestAnalyticSolverIntegration:
         \mathbf{z}(t + h) = \mathbf{P} \cdot \mathbf{z}(t)
     """
 
-    def test_analytic_solver_integration_psc_alpha(self):
+    @pytest.mark.parametrize("use_alternative_expM", [True, False])
+    def test_analytic_solver_integration_psc_alpha(self, use_alternative_expM: bool):
         h = 1E-3    # [s]
         T = 20E-3    # [s]
 
@@ -162,7 +170,6 @@ class TestAnalyticSolverIntegration:
         i_ex = numerical_sol[:2, :]
         v_rel = numerical_sol[2, :]
 
-
         #
         #   timeseries using hand-calculated propagators (only for alpha postsynaptic currents, not V_rel)
         #
@@ -183,14 +190,13 @@ class TestAnalyticSolverIntegration:
                 i_ex__[:, step - 1] = i_ex_init
             i_ex__[:, step] = np.dot(P, i_ex__[:, step - 1])
 
-
         #
         #   timeseries using ode-toolbox generated propagators
         #
 
         print("Starting ODE-toolbox analysis...")
         indict = _open_json("test_integration.json")
-        solver_dict = odetoolbox.analysis(indict, disable_stiffness_check=True, log_level="DEBUG")
+        solver_dict = odetoolbox.analysis(indict, disable_stiffness_check=True, use_alternative_expM=use_alternative_expM, log_level="DEBUG")
         assert len(solver_dict) == 1
         solver_dict = solver_dict[0]
         assert solver_dict["solver"] == "analytical"
@@ -219,7 +225,7 @@ class TestAnalyticSolverIntegration:
             state_ = analytic_integrator.get_value(t)
             state["timevec"].append(t)
             for sym, val in state_.items():
-                state[sym].append(val)
+                state[str(sym)].append(val)
 
         for k, v in state.items():
             state[k] = np.array(v)
