@@ -246,6 +246,7 @@ class SystemOfShapes:
         return solver_dict
 
     def _remove_duplicate_conditions(self, conditions: Set[SymmetricEq]):
+        r"""Remove duplicated conditions. ``conditions`` is already a set of ``SymmetricEq`` (so that ``a == b`` is equivalent to ``b == a``), so duplicates should normally not be possible anyway, but sometimes, in addition to ``a == b``, the condition ``-a == -b`` is present, which is effectively a duplicate. This method removes those kinds of duplicates."""
         for cond in conditions:
             inverted_eq = SymmetricEq(-cond.lhs, -cond.rhs)
             if inverted_eq in conditions:
@@ -255,7 +256,6 @@ class SystemOfShapes:
         # nothing was removed
         return conditions
 
-    def generate_propagator_solver(self, disable_singularity_detection: bool = False, use_alternative_expM: bool = False):
         r"""
         Generate the propagator matrix and symbolic expressions for propagator-based updates; return as JSON.
         """

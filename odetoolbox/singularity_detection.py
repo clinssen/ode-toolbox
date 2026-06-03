@@ -91,14 +91,14 @@ class SingularityDetection:
     @staticmethod
     def _is_matrix_defined_under_substitution(A: sympy.Matrix, cond: Union[SymmetricEq, Set[SymmetricEq]]) -> bool:
         r"""
-        Function to check if a matrix is defined (i.e. does not contain NaN or infinity) after we perform a given set of subsitutions.
+        Function to check if a matrix is defined (i.e. does not contain NaN or infinity) after we perform a given set of substitutions.
 
         Parameters
         ----------
         A : sympy.Matrix
             input matrix
         cond_set : Set(SymmetricEq)
-            a set with equations, where the left-hand side of each equation is the variable that is to be subsituted, and the right-hand side is the expression to put in its place
+            a set with equations, where the left-hand side of each equation is the variable that is to be substituted, and the right-hand side is the expression to put in its place
         """
         for val in sympy.flatten(A):
             if isinstance(val, float) or isinstance(val, int) or isinstance(val, sympy.core.numbers.Number):
@@ -166,7 +166,7 @@ class SingularityDetection:
         -------
 
         conditions
-            a set with equations, where the left-hand side of each equation is the variable that is to be subsituted, and the right-hand side is the expression to put in its place
+            a set with equations, where the left-hand side of each equation is the variable that is to be substituted, and the right-hand side is the expression to put in its place
         """
         logging.debug("Checking for singularities due to inhomogeneous terms in the system of ODEs...")
 
@@ -201,7 +201,7 @@ class SingularityDetection:
         -------
 
         conditions
-            a set with equations, where the left-hand side of each equation is the variable that is to be subsituted, and the right-hand side is the expression to put in its place
+            a set with equations, where the left-hand side of each equation is the variable that is to be substituted, and the right-hand side is the expression to put in its place
         """
         logging.debug("Checking for singularities in the propagator matrix...")
         # try:

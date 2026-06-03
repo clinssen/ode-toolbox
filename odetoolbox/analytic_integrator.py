@@ -1,3 +1,4 @@
+
 # analytic_integrator.py
 #
 # This file is part of the NEST ODE toolbox.
@@ -167,6 +168,66 @@ class AnalyticIntegrator(Integrator):
 
         self._process_update_expressions_from_solver_dict()
 
+    def _and_condition_holds(self, condition_string) -> bool:
+        r"""Check boolean conditions of the form:
+
+        ::
+
+           p_1 && p_2 .. && p_k
+
+        """
+        sub_conditions = condition_string.split("&&")
+        for sub_condition_string in sub_conditions:
+            sub_condition_string = sub_condition_string.strip().strip("()")
+            if "==" in sub_condition_string:
+                parts = sub_condition_string.split("==")
+            else:
+                parts = sub_condition_string.split("!=")
+
+            lhs_str = parts[0].strip()
+            rhs_str = parts[1].strip()
+            lhs = _sympy_parse_real(lhs_str, global_dict=Shape._sympy_globals)
+            rhs = _sympy_parse_real(rhs_str, global_dict=Shape._sympy_globals)
+
+            if "==" in sub_condition_string:
+                equation = SymmetricEq(lhs, rhs)
+            else:
+                equation = sympy.Ne(lhs, rhs)
+
+            subs_dict = {}
+            if "parameters" in self.solver_dict.keys():
+                for param_name, param_val in self.solver_dict["parameters"].items():
+                    param_symbol = sympy.Symbol(param_name, real=True)
+                    subs_dict[param_symbol] = param_val
+
+            sub_condition_holds = equation.subs(subs_dict)
+
+            if not sub_condition_holds:
+                # if any of the subterms do not hold, the whole expression does not hold (AND-ed together)
+                return False
+
+        return True
+
+    def _pick_unconditional_solver(self):
+        self.update_expressions = self.solver_dict["update_expressions"].copy()
+        self.propagators = self.solver_dict["propagators"].copy()
+        self._process_update_expressions_from_solver_dict()
+
+    def _pick_solver_based_on_condition(self):
+        r"""In case of a conditional propagator solver: pick a solver depending on the conditions that hold (depending on parameter values)"""
+        self.update_expressions = self.solver_dict["conditions"]["default"]["update_expressions"]
+        self.propagators = self.solver_dict["conditions"]["default"]["propagators"]
+
+        for condition, conditional_solver in self.solver_dict["conditions"].items():
+            if condition != "default" and self._condition_holds(condition):
+                self.update_expressions = conditional_solver["update_expressions"]
+                self.propagators = conditional_solver["propagators"]
+                logging.debug("Picking solver based on condition: " + str(condition))
+
+                break
+
+        self._process_update_expressions_from_solver_dict()
+
     def _process_update_expressions_from_solver_dict(self):
         #
         #   create substitution dictionary to replace symbolic variables with their numerical values
@@ -180,7 +241,6 @@ class AnalyticIntegrator(Integrator):
             for param_name, param_expr in self.solver_dict["parameters"].items():
                 subs_dict[param_name] = param_expr
 
-        # subs_dict = {sympy.Symbol(k, real=True): v for k, v in subs_dict.items()}
         subs_dict = {sympy.Symbol(k, real=True): v if type(v) is float or isinstance(v, sympy.Expr) else _sympy_parse_real(v, global_dict=Shape._sympy_globals) for k, v in subs_dict.items()}
 
         #
