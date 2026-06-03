@@ -19,7 +19,7 @@
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import Mapping
+from typing import Dict, Mapping, Optional
 
 import logging
 import sympy
@@ -31,6 +31,48 @@ from .config import Config
 class NumericalIssueException(Exception):
     r"""Thrown in case of numerical issues, like division by zero."""
     pass
+
+
+def _sympy_parse_real(expr: str, global_dict: Optional[Dict] = None, local_dict: Optional[Dict] = None, evaluate: bool = True) -> sympy.core.expr.Expr:
+    r"""Custom parse function to make sure that all returned symbols have domain Real.
+
+    Minimal global_dict to make no assumptions (e.g. "beta" could otherwise be recognised as a function instead of as a parameter symbol)"""
+    assert type(expr) is str
+
+    if global_dict:
+        # sympy parse_expr() can sometimes add items to the global_dict; make a copy
+        assert not "__builtins__" in global_dict.keys()
+        global_dict_copy = global_dict.copy()
+    else:
+        global_dict_copy = None
+
+    initial_parse = sympy.parsing.sympy_parser.parse_expr(expr, global_dict=global_dict_copy, local_dict=local_dict, evaluate=evaluate)
+
+    all_syms = initial_parse.free_symbols
+    if local_dict:
+        extended_local_dict = local_dict.copy()
+    else:
+        extended_local_dict = {}
+
+    for sym in all_syms:
+        extended_local_dict_syms_as_str = [str(local_dict_sym) for local_dict_sym in extended_local_dict.keys()]
+        if not str(sym) in extended_local_dict_syms_as_str:
+            real_sym = sympy.Symbol(str(sym), real=True)
+            extended_local_dict[str(real_sym)] = real_sym
+
+    if global_dict:
+        # sympy parse_expr() can sometimes add items to the global_dict; make a copy
+        assert not "__builtins__" in global_dict.keys()
+        global_dict_copy = global_dict.copy()
+    else:
+        global_dict_copy = None
+
+    final_parse = sympy.parsing.sympy_parser.parse_expr(expr, global_dict=global_dict_copy, local_dict=extended_local_dict, evaluate=evaluate)
+
+    for sym in final_parse.free_symbols:
+        assert sym.is_real
+
+    return final_parse
 
 
 def _is_constant_term(term, parameters: Mapping[sympy.Symbol, str] = None) -> bool:
@@ -53,8 +95,10 @@ def _is_constant_term(term, parameters: Mapping[sympy.Symbol, str] = None) -> bo
         or all([sym in parameters.keys() for sym in term.free_symbols])
 
 
-def _check_numerical_issue(var: str) -> None:
-    forbidden_vars = ["zoo", "oo", "nan", "NaN"]
+def _check_numerical_issue(var: str, check_infty: bool = True) -> None:
+    forbidden_vars = ["zoo", "nan", "NaN"]
+    if check_infty:
+        forbidden_vars.append("oo")
     stripped_var_name = str(var).strip("'")
     if stripped_var_name in forbidden_vars:
         raise NumericalIssueException("The variable \"" + stripped_var_name + "\" was found. This indicates a numerical problem while solving the system of ODEs. Please check the input for correctness (such as the presence of divisions by zero).")

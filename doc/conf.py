@@ -194,7 +194,7 @@ html_theme_options = {
 }
 
 
-html_logo = "https://raw.githubusercontent.com/nest/ode-toolbox/master/doc/fig/ode-toolbox-logo.png"
+html_logo = "https://raw.githubusercontent.com/nest/ode-toolbox/main/doc/fig/ode-toolbox-logo.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
