@@ -104,7 +104,8 @@ class TestAnalyticSolverIntegration:
         \mathbf{z}(t + h) = \mathbf{P} \cdot \mathbf{z}(t)
     """
 
-    def test_analytic_solver_integration_psc_alpha(self):
+    @pytest.mark.parametrize("use_alternative_expM", [True, False])
+    def test_analytic_solver_integration_psc_alpha(self, use_alternative_expM: bool):
         h = 1E-3    # [s]
         T = 20E-3    # [s]
 
@@ -195,7 +196,7 @@ class TestAnalyticSolverIntegration:
 
         print("Starting ODE-toolbox analysis...")
         indict = _open_json("test_integration.json")
-        solver_dict = odetoolbox.analysis(indict, disable_stiffness_check=True, log_level="DEBUG")
+        solver_dict = odetoolbox.analysis(indict, disable_stiffness_check=True, use_alternative_expM=use_alternative_expM, log_level="DEBUG")
         assert len(solver_dict) == 1
         solver_dict = solver_dict[0]
         assert solver_dict["solver"] == "analytical"

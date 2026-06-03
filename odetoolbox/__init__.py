@@ -210,7 +210,7 @@ def symbol_appears_in_any_expr(param_name, solver_json) -> bool:
     return False
 
 
-def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False,use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShapes, List[Shape]]:
+def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False, use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShapes, List[Shape]]:
     r"""
     Like analysis(), but additionally returns ``shape_sys`` and ``shapes``.
 
@@ -419,26 +419,6 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
                     for sym, expr in cond_solver["propagators"].items():
                         cond_solver["propagators"][sym] = str(expr)
 
-        if "conditions" in solver_json.keys():
-            for cond, cond_solver in solver_json["conditions"].items():
-                if "update_expressions" in cond_solver:
-                    for sym, expr in cond_solver["update_expressions"].items():
-                        cond_solver["update_expressions"][sym] = str(expr)
-
-                        if preserve_expressions and sym in preserve_expressions:
-                            if "analytic" in solver_json["solver"]:
-                                logging.warning("Not preserving expression for variable \"" + sym + "\" as it is solved by propagator solver")
-                                continue
-
-                            logging.info("Preserving expression for variable \"" + sym + "\"")
-                            var_def_str = _find_variable_definition(indict, sym, order=1)
-                            assert var_def_str is not None
-                            cond_solver["update_expressions"][sym] = var_def_str.replace("'", Config().differential_order_symbol)
-
-                if "propagators" in cond_solver:
-                    for sym, expr in cond_solver["propagators"].items():
-                        cond_solver["propagators"][sym] = str(expr)
-
     logging.info("In ode-toolbox: returning outdict = ")
     logging.info(json.dumps(solvers_json, indent=4, sort_keys=True))
 
@@ -456,7 +436,7 @@ def _init_logging(log_level: Union[str, int] = logging.WARNING):
     logging.getLogger().setLevel(log_level)
 
 
-def analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = True, use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> List[Dict]:
+def analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False, use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> List[Dict]:
     r"""
     The main entry point of the ODE-toolbox API.
 

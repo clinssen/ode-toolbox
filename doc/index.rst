@@ -135,6 +135,9 @@ The following flags exist:
    * - Name
      - Default
      - Description
+   * - ``disable_analytic_solver``
+     - :python:`False`
+     - Set to True to return numerical solver recommendations, and no propagators, even for ODEs that are analytically tractable.
    * - ``disable_stiffness_check``
      - :python:`False`
      - Set to True to disable stiffness check.

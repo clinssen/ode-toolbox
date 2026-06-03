@@ -33,7 +33,7 @@ import sympy.matrices
 from .config import Config
 from .shapes import Shape
 from .singularity_detection import SingularityDetection, SingularityDetectionException
-from .sympy_helpers import SymmetricEq, _custom_simplify_expr, _is_zero, _sympy_parse_real, expMt
+from .sympy_helpers import SymmetricEq, _custom_simplify_expr, _is_zero, expMt, _sympy_parse_real
 
 
 class GetBlockDiagonalException(Exception):
@@ -203,23 +203,21 @@ class SystemOfShapes:
     def _generate_propagator_matrix(self, A, use_alternative_expM: bool = False) -> sympy.Matrix:
         r"""Generate the propagator matrix by matrix exponentiation."""
 
+        if use_alternative_expM:
+            expM = expMt
+        else:
+            expM = sympy.exp
+
         try:
-            # optimized: be explicit about block diagonal elements; much faster!
+            # optimized: compute propagators separately for each block diagonal element of ``A``
             logging.debug("Computing propagator matrix (block-diagonal optimisation)...")
             blocks = get_block_diagonal_blocks(np.array(A))
-
-            if use_alternative_expM:
-                expM = expMt
-            else:
-                expM = sympy.exp
-
             propagators = [sympy.simplify(expM(sympy.Matrix(block) * sympy.Symbol(Config().output_timestep_symbol, real=True))) for block in blocks]
-
             P = sympy.Matrix(scipy.linalg.block_diag(*propagators))
         except GetBlockDiagonalException:
-            # naive: calculate propagators in one step
+            # naive: calculate propagators in one step -- can be quite slow if ``A`` is a large matrix
             logging.debug("Computing propagator matrix...")
-            P = _custom_simplify_expr(sympy.exp(A * sympy.Symbol(Config().output_timestep_symbol, real=True)))
+            P = _custom_simplify_expr(expM(A * sympy.Symbol(Config().output_timestep_symbol, real=True)))
 
         # check the result
         if sympy.I in sympy.preorder_traversal(P):
@@ -256,6 +254,7 @@ class SystemOfShapes:
         # nothing was removed
         return conditions
 
+    def generate_propagator_solver(self, disable_singularity_detection: bool = False, use_alternative_expM: bool = False):
         r"""
         Generate the propagator matrix and symbolic expressions for propagator-based updates; return as JSON.
         """
