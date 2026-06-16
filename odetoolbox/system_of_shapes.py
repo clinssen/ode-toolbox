@@ -243,17 +243,6 @@ class SystemOfShapes:
 
         return solver_dict
 
-    def _remove_duplicate_conditions(self, conditions: Set[SymmetricEq]):
-        r"""Remove duplicated conditions. ``conditions`` is already a set of ``SymmetricEq`` (so that ``a == b`` is equivalent to ``b == a``), so duplicates should normally not be possible anyway, but sometimes, in addition to ``a == b``, the condition ``-a == -b`` is present, which is effectively a duplicate. This method removes those kinds of duplicates."""
-        for cond in conditions:
-            inverted_eq = SymmetricEq(-cond.lhs, -cond.rhs)
-            if inverted_eq in conditions:
-                conditions.discard(cond)
-                return self._remove_duplicate_conditions(conditions)
-
-        # nothing was removed
-        return conditions
-
     def generate_propagator_solver(self, disable_singularity_detection: bool = False, use_alternative_expM: bool = False):
         r"""
         Generate the propagator matrix and symbolic expressions for propagator-based updates; return as JSON.
@@ -269,15 +258,9 @@ class SystemOfShapes:
             try:
                 conditions = SingularityDetection.find_propagator_singularities(P, self.A_)
                 conditions = conditions.union(SingularityDetection.find_inhomogeneous_singularities(self.A_, self.b_))
-                conditions = self._remove_duplicate_conditions(conditions)
+                conditions = SingularityDetection._remove_duplicate_conditions(conditions)
 
                 if conditions:
-                    # if there is one or more condition under which the solution goes to infinity...
-                    logging.getLogger(__name__).warning("Under certain conditions, the propagator matrix is singular (contains infinities).")
-                    logging.getLogger(__name__).warning("List of all conditions that result in a division by zero:")
-                    for eq in conditions:
-                        logging.getLogger(__name__).warning("\t" + r" ∧ ".join([str(eq.lhs) + " = " + str(eq.rhs)]))
-
                     # generate solver for the base case (with singularity conditions that are not met)
                     default_solver = self.generate_solver_dict_based_on_propagator_matrix_(P)
 

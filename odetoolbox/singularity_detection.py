@@ -97,7 +97,7 @@ class SingularityDetection:
         ----------
         A : sympy.Matrix
             input matrix
-        cond_set : Set(SymmetricEq)
+        cond : Set(SymmetricEq)
             a set with equations, where the left-hand side of each equation is the variable that is to be substituted, and the right-hand side is the expression to put in its place
         """
         for val in sympy.flatten(A):
@@ -118,9 +118,9 @@ class SingularityDetection:
         return True
 
     @staticmethod
-    def _filter_valid_conditions(conds: Set[Set[SymmetricEq]], A: sympy.Matrix):
+    def _filter_valid_conditions(conds: Set[SymmetricEq], A: sympy.Matrix):
         filt_cond = set()
-        for cond in conds:  # looping over condition sets
+        for cond in conds:
             if SingularityDetection._is_matrix_defined_under_substitution(A, cond):
                 filt_cond.add(cond)
 
@@ -182,14 +182,27 @@ class SingularityDetection:
             conditions = conditions.union(SingularityDetection._find_singularity_conditions_in_expression(particular_solution))
 
         conditions = SingularityDetection._filter_valid_conditions(conditions, A)  # filters out the invalid conditions (invalid means those for which A is not defined)
+        conditions = SingularityDetection._remove_duplicate_conditions(conditions)
+
         if conditions:
             # if there is one or more condition under which the solution goes to infinity...
-
             logging.getLogger(__name__).warning("Under certain conditions, one or more inhomogeneous term(s) in the system contain a division by zero.")
             logging.getLogger(__name__).warning("List of all conditions that result in a division by zero:")
-            for cond_set in conditions:
-                logging.getLogger(__name__).warning("\t" + r" ∧ ".join([str(eq.lhs) + " = " + str(eq.rhs) for eq in cond_set]))
+            for cond in conditions:
+                logging.getLogger(__name__).warning("\t" + str(cond.lhs) + " = " + str(cond.rhs))
 
+        return conditions
+
+    @staticmethod
+    def _remove_duplicate_conditions(conditions: Set[SymmetricEq]):
+        r"""Remove duplicated conditions. ``conditions`` is already a set of ``SymmetricEq`` (so that ``a == b`` is equivalent to ``b == a``), so duplicates should normally not be possible anyway, but sometimes, in addition to ``a == b``, the condition ``-a == -b`` is present, which is effectively a duplicate. This method removes those kinds of duplicates."""
+        for cond in conditions:
+            inverted_eq = SymmetricEq(-cond.lhs, -cond.rhs)
+            if inverted_eq in conditions:
+                conditions.discard(cond)
+                return SingularityDetection._remove_duplicate_conditions(conditions)
+
+        # nothing was removed
         return conditions
 
     @staticmethod
@@ -214,6 +227,13 @@ class SingularityDetection:
         try:
             conditions = SingularityDetection._generate_singularity_conditions(P)
             conditions = SingularityDetection._filter_valid_conditions(conditions, A)  # filters out the invalid conditions (invalid means those for which A is not defined)
+            conditions = SingularityDetection._remove_duplicate_conditions(conditions)
+            if conditions:
+                # if there is one or more condition under which the solution goes to infinity...
+                logging.getLogger(__name__).warning("Under certain conditions, the propagator matrix is singular (contains infinities).")
+                logging.getLogger(__name__).warning("List of all conditions that result in a division by zero:")
+                for cond in conditions:
+                    logging.getLogger(__name__).warning("\t" + str(cond.lhs) + " = " + str(cond.rhs))
 
         except Exception as e:
             print(e)
