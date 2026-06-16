@@ -51,17 +51,17 @@ if __name__ == "__main__":
         parsed_args.preserve_expressions = True
 
     _init_logging(log_level=parsed_args.log_level)
-    logging.info("Reading input file...")
+    logging.getLogger(__name__).info("Reading input file...")
 
     if not os.path.isfile(parsed_args.infile):
-        logging.error("The file '%s' does not exist." % parsed_args.infile)
+        logging.getLogger(__name__).error("The file '%s' does not exist." % parsed_args.infile)
         sys.exit(1)
 
     with open(parsed_args.infile) as infile:
         try:
             indict = json.load(infile)
         except Exception as e:
-            logging.error("The input JSON file could not be parsed; error: " + e.msg)
+            logging.getLogger(__name__).error("The input JSON file could not be parsed; error: " + e.msg)
             sys.exit(1)
 
     try:
@@ -72,11 +72,11 @@ if __name__ == "__main__":
                                      preserve_expressions=parsed_args.preserve_expressions,
                                      log_level=parsed_args.log_level)
     except MalformedInputException as e:
-        logging.error("The input JSON file could not be parsed; error: " + e.message)
+        logging.getLogger(__name__).error("The input JSON file could not be parsed; error: " + e.message)
         sys.exit(1)
 
     basename = os.path.basename(parsed_args.infile.rsplit(".", 1)[0])
     outfname = "%s_result.json" % basename
-    logging.info("Writing output to file %s..." % outfname)
+    logging.getLogger(__name__).info("Writing output to file %s..." % outfname)
     with open(outfname, 'w') as outfile:
         outfile.write(json.dumps(result, indent=2))

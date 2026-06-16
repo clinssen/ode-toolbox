@@ -407,10 +407,10 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
 
                         if preserve_expressions and sym in preserve_expressions:
                             if "analytic" in solver_json["solver"]:
-                                logging.warning("Not preserving expression for variable \"" + sym + "\" as it is solved by propagator solver")
+                                logging.getLogger(__name__).warning("Not preserving expression for variable \"" + sym + "\" as it is solved by propagator solver")
                                 continue
 
-                            logging.info("Preserving expression for variable \"" + sym + "\"")
+                            logging.getLogger(__name__).info("Preserving expression for variable \"" + sym + "\"")
                             var_def_str = _find_variable_definition(indict, sym, order=1)
                             assert var_def_str is not None
                             cond_solver["update_expressions"][sym] = var_def_str.replace("'", Config().differential_order_symbol)

@@ -213,12 +213,6 @@ class SystemOfShapes:
             logging.debug("Computing propagator matrix (block-diagonal optimisation)...")
             blocks = get_block_diagonal_blocks(np.array(A))
             propagators = [sympy.simplify(expM(sympy.Matrix(block) * sympy.Symbol(Config().output_timestep_symbol, real=True))) for block in blocks]
-            if Config().use_alternative_expM:
-                expM = expMt
-            else:
-                expM = sympy.exp
-
-            propagators = [sympy.simplify(expM(sympy.Matrix(block) * sympy.Symbol(Config().output_timestep_symbol, real=True))) for block in blocks]
             P = sympy.Matrix(scipy.linalg.block_diag(*propagators))
         except GetBlockDiagonalException:
             # naive: calculate propagators in one step -- can be quite slow if ``A`` is a large matrix
@@ -264,6 +258,7 @@ class SystemOfShapes:
         r"""
         Generate the propagator matrix and symbolic expressions for propagator-based updates; return as JSON.
         """
+
         P = self._generate_propagator_matrix(self.A_, use_alternative_expM=use_alternative_expM)
 
         #
@@ -278,10 +273,10 @@ class SystemOfShapes:
 
                 if conditions:
                     # if there is one or more condition under which the solution goes to infinity...
-                    logging.info("Under certain conditions, the default analytic solver contains singularities due to division by zero.")
-                    logging.info("List of all conditions that result in a division by zero:")
-                    for cond in conditions:
-                        logging.info("\t" + str(cond.lhs) + " = " + str(cond.rhs))
+                    logging.getLogger(__name__).warning("Under certain conditions, the propagator matrix is singular (contains infinities).")
+                    logging.getLogger(__name__).warning("List of all conditions that result in a division by zero:")
+                    for eq in conditions:
+                        logging.getLogger(__name__).warning("\t" + r" ∧ ".join([str(eq.lhs) + " = " + str(eq.rhs)]))
 
                     # generate solver for the base case (with singularity conditions that are not met)
                     default_solver = self.generate_solver_dict_based_on_propagator_matrix_(P)
@@ -299,7 +294,7 @@ class SystemOfShapes:
 
                     num_conditions = len(conditions)
                     condition_permutations = list(itertools.product([False, True], repeat=num_conditions))
-                    logging.info("Alternate solvers will be generated for each of these conditions (and combinations thereof), which amounts to " + str(len(condition_permutations)) + " solvers that will be generated.")
+                    logging.getLogger(__name__).info("Alternate solvers will be generated for each of these conditions (and combinations thereof), which amounts to " + str(len(condition_permutations)) + " solvers that will be generated.")
                     for condition_permutation in condition_permutations:
                         # each ``condition_permutation[i]`` is True/False corresponding to condition i
 
@@ -341,13 +336,6 @@ class SystemOfShapes:
 
                     return solver_dict
 
-                if conditions:
-                    # if there is one or more condition under which the solution goes to infinity...
-                    
-                    logging.getLogger(__name__).warning("Under certain conditions, the propagator matrix is singular (contains infinities).")
-                    logging.getLogger(__name__).warning("List of all conditions that result in a division by zero:")
-                    for cond_set in conditions:
-                        logging.getLogger(__name__).warning("\t" + r" ∧ ".join([str(eq.lhs) + " = " + str(eq.rhs) for eq in cond_set]))
             except SingularityDetectionException:
                 logging.getLogger(__name__).warning("Could not check the propagator matrix for singularities.")
 
