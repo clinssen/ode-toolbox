@@ -230,7 +230,6 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
 
     _read_global_config(indict)
 
-
     # copy parameters from the input and make sure keys are of type sympy.Symbol
     parameters = None
     if "parameters" in indict.keys():

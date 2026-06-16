@@ -529,7 +529,6 @@ class Shape:
         if not found_ode:
             raise Exception("Shape does not satisfy any ODE of order <= " + str(max_order))
 
-
         #
         #    calculate the initial values of the found ODE
         #
