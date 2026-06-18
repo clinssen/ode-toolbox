@@ -66,7 +66,7 @@ def get_block_diagonal_blocks(A):
         idx_max = np.amax(idx)
         block = A[idx_min:idx_max + 1, idx_min:idx_max + 1]
         blocks.append(block)
-
+    import pdb;pdb.set_trace()
     return blocks
 
 
@@ -212,7 +212,7 @@ class SystemOfShapes:
             # optimized: compute propagators separately for each block diagonal element of ``A``
             logging.debug("Computing propagator matrix (block-diagonal optimisation)...")
             blocks = get_block_diagonal_blocks(np.array(A))
-            propagators = [sympy.simplify(expM(sympy.Matrix(block) * sympy.Symbol(Config().output_timestep_symbol, real=True))) for block in blocks]
+            propagators = [_custom_simplify_expr(expM(sympy.Matrix(block) * sympy.Symbol(Config().output_timestep_symbol, real=True))) for block in blocks]
             P = sympy.Matrix(scipy.linalg.block_diag(*propagators))
         except GetBlockDiagonalException:
             # naive: calculate propagators in one step -- can be quite slow if ``A`` is a large matrix
