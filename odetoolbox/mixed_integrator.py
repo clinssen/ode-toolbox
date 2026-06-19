@@ -26,16 +26,16 @@ import numpy as np
 import os
 import sympy
 import sympy.utilities.autowrap
-from sympy.utilities.autowrap import CodeGenArgumentListError
+import sympy.utilities.codegen
 import time
 
 from .analytic_integrator import AnalyticIntegrator
 from .config import Config
 from .integrator import Integrator
-from .plot_helper import import_matplotlib
 from .shapes import Shape
 from .system_of_shapes import SystemOfShapes
 from .sympy_helpers import _is_sympy_type, _sympy_parse_real
+from tests.test_utils import import_matplotlib
 
 try:
     import pygsl.odeiv as odeiv
@@ -118,7 +118,7 @@ class MixedIntegrator(Integrator):
                                                                                    args=self.all_variable_symbols,
                                                                                    backend="cython",
                                                                                    helpers=Shape._sympy_autowrap_helpers)
-            except CodeGenArgumentListError:
+            except sympy.utilities.codegen.CodeGenArgumentListError:
                 raise ParametersIncompleteException("Integration not possible because numerical values were not specified for all parameters.")
         self.symbolic_jacobian_wrapped = np.empty(self.symbolic_jacobian_.shape, dtype=object)
         for i in range(self.symbolic_jacobian_.shape[0]):

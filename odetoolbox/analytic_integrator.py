@@ -161,7 +161,7 @@ class AnalyticIntegrator(Integrator):
             if condition != "default" and self._condition_holds(condition):
                 self.update_expressions = conditional_solver["update_expressions"]
                 self.propagators = conditional_solver["propagators"]
-                logging.debug("Picking solver based on condition: " + str(condition))
+                logging.getLogger(__name__).debug("Picking solver based on condition: " + str(condition))
 
                 break
 

@@ -25,16 +25,13 @@ import numpy as np
 import scipy.integrate
 import sympy
 
-try:
-    import matplotlib as mpl
-    mpl.use('Agg')
-    import matplotlib.pyplot as plt
-    DEBUG_PLOTS = True
-except ImportError:
-    DEBUG_PLOTS = False
-
 from .context import odetoolbox
 from odetoolbox.analytic_integrator import AnalyticIntegrator
+from tests.test_utils import import_matplotlib
+
+
+mpl, plt = import_matplotlib()
+INTEGRATION_TEST_DEBUG_PLOTS: bool = mpl is not None
 
 
 class TestInhomogeneousNumericallyZero:

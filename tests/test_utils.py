@@ -20,7 +20,12 @@
 #
 
 import json
+import logging
 import os
+
+
+_mpl = None
+_plt = None
 
 
 def _open_json(fname):
@@ -28,3 +33,28 @@ def _open_json(fname):
     with open(absfname) as infile:
         indict = json.load(infile)
     return indict
+
+
+def import_matplotlib():
+    """Try to import and configure matplotlib. Returns the "mpl" and "plt" packages if the import was successful, or return (None, None) if unsuccessful."""
+    global _mpl
+    global _plt
+    if _mpl:
+        return _mpl, _plt
+    try:
+        def update_matplotlib_log_level():
+            log_level = "WARNING"
+            logging.getLogger("matplotlib").setLevel(log_level)
+            logging.getLogger("PIL").setLevel(log_level)
+
+        update_matplotlib_log_level()
+
+        import matplotlib as mpl
+        mpl.use("Agg")
+        import matplotlib.pyplot as plt
+
+        _mpl, _plt = mpl, plt
+        return _mpl, _plt
+
+    except ImportError:
+        return None, None

@@ -23,20 +23,14 @@ import logging
 import sympy
 import numpy as np
 
-from tests.test_utils import _open_json
-
-try:
-    import matplotlib as mpl
-    mpl.use('Agg')
-    import matplotlib.pyplot as plt
-    INTEGRATION_TEST_DEBUG_PLOTS = True
-except ImportError:
-    INTEGRATION_TEST_DEBUG_PLOTS = False
-
-
 import odetoolbox
 from odetoolbox.analytic_integrator import AnalyticIntegrator
 from odetoolbox.spike_generator import SpikeGenerator
+from tests.test_utils import _open_json, import_matplotlib
+
+
+mpl, plt = import_matplotlib()
+INTEGRATION_TEST_DEBUG_PLOTS: bool = mpl is not None
 
 
 class TestAnalyticIntegrator:

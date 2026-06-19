@@ -25,14 +25,6 @@ import sympy
 import numpy as np
 
 try:
-    import matplotlib as mpl
-    mpl.use("Agg")
-    import matplotlib.pyplot as plt
-    INTEGRATION_TEST_DEBUG_PLOTS = True
-except ImportError:
-    INTEGRATION_TEST_DEBUG_PLOTS = False
-
-try:
     import pygsl.odeiv as odeiv
     PYGSL_AVAILABLE = True
 except ImportError:
@@ -40,7 +32,11 @@ except ImportError:
 
 import odetoolbox
 from odetoolbox.mixed_integrator import MixedIntegrator
-from tests.test_utils import _open_json
+from tests.test_utils import _open_json, import_matplotlib
+
+
+mpl, plt = import_matplotlib()
+INTEGRATION_TEST_DEBUG_PLOTS: bool = mpl is not None
 
 
 def _timeseries_plot(t_log, h_log, y_log, sym_list, basedir="/tmp", fn_snip="", title_snip=""):

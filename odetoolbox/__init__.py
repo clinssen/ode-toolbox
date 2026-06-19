@@ -44,8 +44,8 @@ if PYGSL_AVAILABLE:
     from .stiffness import StiffnessTester
 
 try:
-    import graphviz
     logging.getLogger("graphviz").setLevel(logging.ERROR)
+    import graphviz
     PLOT_DEPENDENCY_GRAPH = True
 except ImportError:
     PLOT_DEPENDENCY_GRAPH = False

@@ -19,7 +19,7 @@
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import Dict, Mapping, Optional
+from typing import Dict, Mapping, Optional, Union
 
 import logging
 import sympy
@@ -141,7 +141,7 @@ def _is_sympy_type(var):
     raise Exception("Unsupported sympy version used")
 
 
-def _custom_simplify_expr(expr: str):
+def _custom_simplify_expr(expr: Union[str, sympy.matrices.MatrixBase]):
     """Custom expression simplification"""
     if isinstance(expr, sympy.matrices.MatrixBase):
         return expr.applyfunc(_custom_simplify_expr)
