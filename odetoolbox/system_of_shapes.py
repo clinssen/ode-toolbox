@@ -242,7 +242,7 @@ class SystemOfShapes:
 
         return solver_dict
 
-    def generate_propagator_solver(self, disable_singularity_detection: bool = False, use_alternative_expM: bool = False):
+    def generate_propagator_solver(self, disable_singularity_detection: bool = False, disable_singularity_mitigation: bool = False, use_alternative_expM: bool = False):
         r"""
         Generate the propagator matrix and symbolic expressions for propagator-based updates; return as JSON.
         """
@@ -259,7 +259,7 @@ class SystemOfShapes:
                 conditions = conditions.union(SingularityDetection.find_inhomogeneous_singularities(self.A_, self.b_))
                 conditions = SingularityDetection._remove_duplicate_conditions(conditions)
 
-                if conditions:
+                if conditions and not disable_singularity_mitigation:
                     # generate solver for the base case (with singularity conditions that are not met)
                     default_solver = self.generate_solver_dict_based_on_propagator_matrix_(P)
 
@@ -310,7 +310,7 @@ class SystemOfShapes:
                                 conditional_c = conditional_c.subs(eq.lhs, eq.rhs)
 
                         conditional_dynamics = SystemOfShapes(self.x_, conditional_A, conditional_b, conditional_c, self.shapes_)
-                        solver_dict_conditional = conditional_dynamics.generate_propagator_solver(disable_singularity_detection=True, use_alternative_expM=use_alternative_expM)
+                        solver_dict_conditional = conditional_dynamics.generate_propagator_solver(disable_singularity_detection=True, disable_singularity_mitigation=True, use_alternative_expM=use_alternative_expM)
                         solver_dict["conditions"][condition_str] = {"propagators": solver_dict_conditional["propagators"],
                                                                     "update_expressions": solver_dict_conditional["update_expressions"]}
 

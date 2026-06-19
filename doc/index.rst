@@ -146,7 +146,10 @@ The following flags exist:
      - Set to True to return numerical solver recommendations, and no propagators, even for ODEs that are analytically tractable.
    * - ``disable_singularity_detection``
      - :python:`False`
-     - Set to True to disable detection of conditions under which numerical singularities (division by zero) could occur in the generated analytic solver. This can be useful for analytic solvers containing a large amount of conditions, which could take a long time to compute. If True, at most one analytic solver will be returned, in which numerical singularities could occur.
+     - Set to True to disable detection of conditions under which numerical singularities (division by zero) could occur in the generated analytic solver. This can be useful for analytic solvers containing a large amount of conditions, which could take a long time to compute. If True, no warning messages or mitigations will be returned in case of potential singularities.
+   * - ``disable_singularity_mitigation``
+     - :python:`False`
+     - (Only useful if ``disable_singularity_detection`` is False.) Set to True to disable mitigation of conditions under which numerical singularities (division by zero) could occur in the generated analytic solver. This can be useful for analytic solvers containing a large amount of conditions, which could take a long time to compute. If True, at most one analytic solver will be returned, in which numerical singularities could occur.
    * - ``use_alternative_expM``
      - :python:`False`
      - If :python:`False`, use the sympy function ``sympy.exp`` to compute the matrix exponential. If :python:`True`, use an alternative function (see :py:func:`odetoolbox.sympy_helpers.expMt` for details). This can be useful as calls to ``sympy.exp`` can sometimes take a very large amount of time.
@@ -156,6 +159,7 @@ The following flags exist:
    * - ``log_level``
      - :python:`logging.WARN`
      - Sets the logging threshold. Logging messages which are less severe than ``log_level`` will be ignored. Log levels can be provided as an integer or string, for example "INFO" (more messages) or "WARN" (fewer messages). For a list of valid logging levels, see https://docs.python.org/3/library/logging.html#logging-levels
+
 
 Input
 -----

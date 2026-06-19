@@ -69,6 +69,7 @@ if __name__ == "__main__":
                                      disable_stiffness_check=parsed_args.disable_stiffness_check,
                                      disable_analytic_solver=parsed_args.disable_analytic_solver,
                                      disable_singularity_detection=parsed_args.disable_singularity_detection,
+                                     disable_singularity_mitigation=parsed_args.disable_singularity_mitigation,
                                      preserve_expressions=parsed_args.preserve_expressions,
                                      log_level=parsed_args.log_level)
     except MalformedInputException as e:

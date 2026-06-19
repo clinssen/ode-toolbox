@@ -210,7 +210,7 @@ def symbol_appears_in_any_expr(param_name, solver_json) -> bool:
     return False
 
 
-def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False, use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShapes, List[Shape]]:
+def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False, disable_singularity_mitigation: bool = False, use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShapes, List[Shape]]:
     r"""
     Like analysis(), but additionally returns ``shape_sys`` and ``shapes``.
 
@@ -277,7 +277,7 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
     if analytic_syms:
         logging.getLogger(__name__).info("Generating propagators for the following symbols: " + ", ".join([str(k) for k in analytic_syms]))
         sub_sys = shape_sys.get_sub_system(analytic_syms)
-        analytic_solver_json = sub_sys.generate_propagator_solver(disable_singularity_detection=disable_singularity_detection, use_alternative_expM=use_alternative_expM)
+        analytic_solver_json = sub_sys.generate_propagator_solver(disable_singularity_detection=disable_singularity_detection, disable_singularity_mitigation=disable_singularity_mitigation, use_alternative_expM=use_alternative_expM)
         analytic_solver_json["solver"] = "analytical"
         solvers_json.append(analytic_solver_json)
 
@@ -436,14 +436,15 @@ def _init_logging(log_level: Union[str, int] = logging.WARNING):
     logger.setLevel(log_level)
 
 
-def analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False, use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> List[Dict]:
+def analysis(indict, disable_stiffness_check: bool = False, disable_analytic_solver: bool = False, disable_singularity_detection: bool = False, disable_singularity_mitigation: bool = False, use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, log_level: Union[str, int] = logging.WARNING) -> List[Dict]:
     r"""
     The main entry point of the ODE-toolbox API.
 
     :param indict: Input dictionary for the analysis. For details, see https://ode-toolbox.readthedocs.io/en/main/#input
     :param disable_stiffness_check: Whether to perform stiffness checking.
     :param disable_analytic_solver: Set to True to return numerical solver recommendations, and no propagators, even for ODEs that are analytically tractable.
-    :param disable_singularity_detection: Set to True to disable detection of conditions under which numerical singularities (division by zero) could occur in the generated analytic solver. This can be useful for analytic solvers containing a large amount of conditions, which could take a long time to compute. If True, at most one analytic solver will be returned, in which numerical singularities could occur.
+    :param disable_singularity_detection: Set to True to disable detection of conditions under which numerical singularities (division by zero) could occur in the generated analytic solver. This can be useful for analytic solvers containing a large amount of conditions, which could take a long time to compute. If True, no warning messages or mitigations will be returned in case of potential singularities.
+    :param disable_singularity_mitigation: (Only useful if ``disable_singularity_detection`` is False.) Set to True to disable mitigation of conditions under which numerical singularities (division by zero) could occur in the generated analytic solver. This can be useful for analytic solvers containing a large amount of conditions, which could take a long time to compute. If True, at most one analytic solver will be returned, in which numerical singularities could occur.
     :param use_alternative_expM: If :python:`False`, use the sympy function ``sympy.exp`` to compute the matrix exponential. If :python:`True`, use an alternative function (see :py:func:`odetoolbox.sympy_helpers.expMt` for details). This can be useful as calls to ``sympy.exp`` can sometimes take a very large amount of time.
     :param preserve_expressions: Set to True, or a list of strings corresponding to individual variable names, to disable internal rewriting of expressions, and return same output as input expression where possible. Only applies to variables specified as first-order differential equations.
     :param log_level: Sets the logging threshold. Logging messages which are less severe than ``log_level`` will be ignored. Log levels can be provided as an integer or string, for example "INFO" (more messages) or "WARN" (fewer messages). For a list of valid logging levels, see https://docs.python.org/3/library/logging.html#logging-levels
@@ -454,6 +455,7 @@ def analysis(indict, disable_stiffness_check: bool = False, disable_analytic_sol
                         disable_stiffness_check=disable_stiffness_check,
                         disable_analytic_solver=disable_analytic_solver,
                         disable_singularity_detection=disable_singularity_detection,
+                        disable_singularity_mitigation=disable_singularity_mitigation,
                         use_alternative_expM=use_alternative_expM,
                         preserve_expressions=preserve_expressions,
                         log_level=log_level)
