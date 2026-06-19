@@ -57,7 +57,7 @@ class TestInhomogeneous:
             cur_x = x0 + 42 * t
             correct.append(cur_x)
 
-        np.testing.assert_allclose(correct, actual)
+        np.testing.assert_allclose(actual, correct)
 
     @pytest.mark.parametrize("dt", [.1, 1.])
     @pytest.mark.parametrize("ode_definition", ["(U - x) / tau",
@@ -97,7 +97,7 @@ class TestInhomogeneous:
             correct.append(cur_x)
             cur_x = U + kernel * (cur_x - U)
 
-        np.testing.assert_allclose(correct, actual)
+        np.testing.assert_allclose(actual, correct)
 
     @pytest.mark.parametrize("dt", [.1, 1.])
     def test_inhomogeneous_simultaneous(self, dt: float):

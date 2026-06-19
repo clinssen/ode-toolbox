@@ -35,7 +35,7 @@ from tests.test_utils import _open_json, import_matplotlib
 
 
 mpl, plt = import_matplotlib()
-INTEGRATION_TEST_DEBUG_PLOTS: bool = mpl is not None
+ENABLE_PLOTS: bool = mpl is not None
 
 sympy_version = semver.Version.parse(sympy.__version__)
 SYMPY_VERSION_TOO_OLD = (sympy_version.major < 1) or (sympy_version.major == 1 and sympy_version.minor < 12)
@@ -221,7 +221,7 @@ class TestAnalyticSolverIntegration:
         for k, v in state.items():
             state[k] = np.array(v)
 
-        if INTEGRATION_TEST_DEBUG_PLOTS:
+        if ENABLE_PLOTS:
             fig, ax = plt.subplots(3, sharex=True)
             ax[0].plot(1E3 * numerical_timevec.squeeze(), v_rel, label="V_rel (num)")
             ax[0].plot(1E3 * state["timevec"], state["V_rel"], linestyle=":", marker="+", label="V_rel (prop)")

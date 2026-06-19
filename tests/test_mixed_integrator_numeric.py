@@ -36,7 +36,7 @@ from tests.test_utils import _open_json, import_matplotlib
 
 
 mpl, plt = import_matplotlib()
-INTEGRATION_TEST_DEBUG_PLOTS: bool = mpl is not None
+ENABLE_PLOTS: bool = mpl is not None
 
 
 def _timeseries_plot(t_log, h_log, y_log, sym_list, basedir="/tmp", fn_snip="", title_snip=""):
@@ -83,7 +83,7 @@ def _run_simulation(indict, alias_spikes, integrator, params=None, **kwargs):
         _params.update(params)
 
     debug_plot_dir = None
-    if INTEGRATION_TEST_DEBUG_PLOTS:   # only enable plotting if matplotlib was successfully imported
+    if ENABLE_PLOTS:   # only enable plotting if matplotlib was successfully imported
         debug_plot_dir = "/tmp"
 
     mixed_integrator = MixedIntegrator(integrator,
@@ -122,7 +122,7 @@ def test_mixed_integrator_numeric(**kwargs):
         indict = _open_json("iaf_cond_alpha.json")
         h_min, h_avg, runtime, upper_bound_crossed, t_log, h_log, y_log, sym_list, analysis_json = _run_simulation(indict, alias_spikes, integrator)
 
-        if INTEGRATION_TEST_DEBUG_PLOTS:
+        if ENABLE_PLOTS:
             _timeseries_plot(t_log,
                              h_log,
                              y_log,

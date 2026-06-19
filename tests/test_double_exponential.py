@@ -32,7 +32,7 @@ from tests.test_utils import import_matplotlib
 
 
 mpl, plt = import_matplotlib()
-INTEGRATION_TEST_DEBUG_PLOTS: bool = mpl is not None
+ENABLE_PLOTS: bool = mpl is not None
 
 
 class TestDoubleExponential:
@@ -134,7 +134,7 @@ class TestDoubleExponential:
         rec_I_interp = np.interp(np.hstack([ts0, ts1, ts2]), timevec, state["I"])
         rec_I_aux_interp = np.interp(np.hstack([ts0, ts1, ts2]), timevec, state["I_aux"])
 
-        if INTEGRATION_TEST_DEBUG_PLOTS:
+        if ENABLE_PLOTS:
             tmax = time_to_max(tau_1, tau_2)
             mpl.rcParams["text.usetex"] = True
 

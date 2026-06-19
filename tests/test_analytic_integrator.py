@@ -30,7 +30,7 @@ from tests.test_utils import _open_json, import_matplotlib
 
 
 mpl, plt = import_matplotlib()
-INTEGRATION_TEST_DEBUG_PLOTS: bool = mpl is not None
+ENABLE_PLOTS: bool = mpl is not None
 
 
 class TestAnalyticIntegrator:
@@ -83,7 +83,7 @@ class TestAnalyticIntegrator:
             for k, v in state[use_caching].items():
                 state[use_caching][k] = np.array(v)
 
-        if INTEGRATION_TEST_DEBUG_PLOTS:
+        if ENABLE_PLOTS:
             fig, ax = plt.subplots(2, sharex=True)
 
             ax[0].plot(1E3 * timevec, state[True]["I"], linewidth=2, linestyle='--', dashes=(5, 1), marker="x", label="I (caching)", alpha=.8)

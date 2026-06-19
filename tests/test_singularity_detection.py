@@ -35,7 +35,7 @@ from tests.test_utils import import_matplotlib
 
 
 mpl, plt = import_matplotlib()
-INTEGRATION_TEST_DEBUG_PLOTS: bool = mpl is not None
+ENABLE_PLOTS: bool = mpl is not None
 
 
 class TestSingularityDetection:
@@ -206,7 +206,7 @@ class TestSingularityInBothPropagatorAndInhomogeneous:
         ts0 = ts0[:-1]
         ts1 = ts1[:-1]
 
-        if INTEGRATION_TEST_DEBUG_PLOTS:
+        if ENABLE_PLOTS:
 
             #
             #   plot the double exponential ODE
@@ -247,7 +247,7 @@ class TestSingularityInBothPropagatorAndInhomogeneous:
         #   test
         #
 
-        np.testing.assert_allclose(correct, actual)
+        np.testing.assert_allclose(actual, correct)
         np.testing.assert_allclose(y_[:, 1], state["I"], atol=1E-7)
         np.testing.assert_allclose(y_[:, 0], state["I_aux"], atol=1E-7)
 
