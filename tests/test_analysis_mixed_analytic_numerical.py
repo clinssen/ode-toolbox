@@ -28,7 +28,7 @@ except ImportError:
     PYGSL_AVAILABLE = False
 
 from .context import odetoolbox
-from .test_utils import load_json
+from odetoolbox.test_utils import load_json
 
 
 class TestAnalysisMixedAnalyticNumerical:
