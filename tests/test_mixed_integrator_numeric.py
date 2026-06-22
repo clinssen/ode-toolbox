@@ -31,9 +31,9 @@ except ImportError:
     PYGSL_AVAILABLE = False
 
 import odetoolbox
+from odetoolbox.debug_utils import import_matplotlib
 from odetoolbox.mixed_integrator import MixedIntegrator
-from odetoolbox.test_utils import load_json, import_matplotlib
-
+from tests.test_utils import load_test_json
 
 mpl, plt = import_matplotlib()
 ENABLE_PLOTS: bool = mpl is not None
@@ -119,7 +119,7 @@ def test_mixed_integrator_numeric(**kwargs):
     integrator = odeiv.step_rk4
 
     for alias_spikes in [True, False]:
-        indict = load_json("iaf_cond_alpha.json")
+        indict = load_test_json("iaf_cond_alpha.json")
         h_min, h_avg, runtime, upper_bound_crossed, t_log, h_log, y_log, sym_list, analysis_json = _run_simulation(indict, alias_spikes, integrator)
 
         if ENABLE_PLOTS:

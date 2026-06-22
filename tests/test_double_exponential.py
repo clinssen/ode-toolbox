@@ -27,8 +27,8 @@ import sympy
 import odetoolbox
 
 from odetoolbox.analytic_integrator import AnalyticIntegrator
+from odetoolbox.debug_utils import import_matplotlib
 from odetoolbox.spike_generator import SpikeGenerator
-from odetoolbox.test_utils import import_matplotlib
 
 
 mpl, plt = import_matplotlib()

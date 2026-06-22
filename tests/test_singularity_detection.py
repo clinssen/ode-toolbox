@@ -28,10 +28,10 @@ import pytest
 
 from .context import odetoolbox
 from odetoolbox.analytic_integrator import AnalyticIntegrator
-from odetoolbox.spike_generator import SpikeGenerator
+from odetoolbox.debug_utils import import_matplotlib
 from odetoolbox.singularity_detection import SingularityDetection
+from odetoolbox.spike_generator import SpikeGenerator
 from odetoolbox.sympy_helpers import SymmetricEq, _sympy_parse_real
-from odetoolbox.test_utils import import_matplotlib
 
 
 mpl, plt = import_matplotlib()

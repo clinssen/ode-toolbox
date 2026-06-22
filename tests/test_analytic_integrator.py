@@ -25,9 +25,9 @@ import numpy as np
 
 import odetoolbox
 from odetoolbox.analytic_integrator import AnalyticIntegrator
+from odetoolbox.debug_utils import import_matplotlib
 from odetoolbox.spike_generator import SpikeGenerator
-from odetoolbox.test_utils import load_json, import_matplotlib
-
+from tests.test_utils import load_test_json
 
 mpl, plt = import_matplotlib()
 ENABLE_PLOTS: bool = mpl is not None
@@ -46,7 +46,7 @@ class TestAnalyticIntegrator:
         #   timeseries using ode-toolbox generated propagators
         #
 
-        indict = load_json("test_alpha_function_of_time.json")
+        indict = load_test_json("test_alpha_function_of_time.json")
         solver_dict = odetoolbox.analysis(indict, disable_stiffness_check=True, log_level=logging.DEBUG)
         assert len(solver_dict) == 1
         solver_dict = solver_dict[0]

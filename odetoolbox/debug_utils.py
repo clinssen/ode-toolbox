@@ -1,5 +1,5 @@
 #
-# test_utils.py
+# debug_utils.py
 #
 # This file is part of the NEST ODE toolbox.
 #
@@ -19,20 +19,11 @@
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import json
 import logging
-import os
 
 
 _mpl = None
 _plt = None
-
-
-def load_json(fname):
-    absfname = os.path.join(os.path.abspath(os.path.dirname(__file__)), fname)
-    with open(absfname) as infile:
-        indict = json.load(infile)
-    return indict
 
 
 def import_matplotlib():

@@ -31,8 +31,8 @@ import scipy.integrate
 
 from .context import odetoolbox
 from odetoolbox.analytic_integrator import AnalyticIntegrator
-from odetoolbox.test_utils import load_json, import_matplotlib
-
+from odetoolbox.debug_utils import import_matplotlib
+from tests.test_utils import load_test_json
 
 mpl, plt = import_matplotlib()
 ENABLE_PLOTS: bool = mpl is not None
@@ -186,7 +186,7 @@ class TestAnalyticSolverIntegration:
         #
 
         print("Starting ODE-toolbox analysis...")
-        indict = load_json("test_integration.json")
+        indict = load_test_json("test_integration.json")
         solver_dict = odetoolbox.analysis(indict, disable_stiffness_check=True, use_alternative_expM=use_alternative_expM, log_level="DEBUG")
         assert len(solver_dict) == 1
         solver_dict = solver_dict[0]

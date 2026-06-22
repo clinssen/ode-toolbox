@@ -27,7 +27,7 @@ import sympy
 
 from .context import odetoolbox
 from odetoolbox.analytic_integrator import AnalyticIntegrator
-from odetoolbox.test_utils import import_matplotlib
+from odetoolbox.debug_utils import import_matplotlib
 
 
 mpl, plt = import_matplotlib()
