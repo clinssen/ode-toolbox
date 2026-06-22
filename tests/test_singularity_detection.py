@@ -31,7 +31,7 @@ from odetoolbox.analytic_integrator import AnalyticIntegrator
 from odetoolbox.spike_generator import SpikeGenerator
 from odetoolbox.singularity_detection import SingularityDetection
 from odetoolbox.sympy_helpers import SymmetricEq, _sympy_parse_real
-from tests.test_utils import import_matplotlib
+from odetoolbox.test_utils import import_matplotlib
 
 
 mpl, plt = import_matplotlib()

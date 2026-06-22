@@ -28,7 +28,7 @@ _mpl = None
 _plt = None
 
 
-def _open_json(fname):
+def load_json(fname):
     absfname = os.path.join(os.path.abspath(os.path.dirname(__file__)), fname)
     with open(absfname) as infile:
         indict = json.load(infile)

@@ -21,8 +21,6 @@
 
 import pytest
 
-from tests.test_utils import _open_json
-
 try:
     import pygsl
     PYGSL_AVAILABLE = True
@@ -30,12 +28,13 @@ except ImportError:
     PYGSL_AVAILABLE = False
 
 from .context import odetoolbox
+from .test_utils import load_json
 
 
 class TestAnalysisMixedAnalyticNumerical:
 
     def test_mixed_analytic_numerical_no_stiffness(self):
-        indict = _open_json("mixed_analytic_numerical_no_stiffness.json")
+        indict = load_json("mixed_analytic_numerical_no_stiffness.json")
         solver_dict = odetoolbox.analysis(indict, disable_stiffness_check=True)
         assert len(solver_dict) == 2
         assert (solver_dict[0]["solver"] == "analytical" and solver_dict[1]["solver"][:7] == "numeric") \
@@ -43,7 +42,7 @@ class TestAnalysisMixedAnalyticNumerical:
 
     @pytest.mark.skipif(not PYGSL_AVAILABLE, reason="Cannot run stiffness test if GSL is not installed.")
     def test_mixed_analytic_numerical_with_stiffness(self):
-        indict = _open_json("mixed_analytic_numerical_with_stiffness.json")
+        indict = load_json("mixed_analytic_numerical_with_stiffness.json")
         solver_dict = odetoolbox.analysis(indict, disable_stiffness_check=False)
         assert len(solver_dict) == 2
         assert (solver_dict[0]["solver"] == "analytical" and solver_dict[1]["solver"][:7] == "numeric") \

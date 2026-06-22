@@ -20,14 +20,14 @@
 #
 
 from .context import odetoolbox
-from tests.test_utils import _open_json
+from odetoolbox.test_utils import load_json
 
 
 class TestPropagatorSolverHomogeneous:
     r"""Test ODE-toolbox ability to come up with a propagator solver for a matrix that is not block-diagonalisable, because it contains an autonomous ODE."""
 
     def test_propagator_solver_homogeneous(self):
-        indict = _open_json("test_propagator_solver_homogeneous.json")
+        indict = load_json("test_propagator_solver_homogeneous.json")
         solver_dict = odetoolbox.analysis(indict, disable_stiffness_check=True, log_level="DEBUG")
         assert len(solver_dict) == 1
         solver_dict = solver_dict[0]

@@ -28,7 +28,7 @@ import odetoolbox
 
 from odetoolbox.analytic_integrator import AnalyticIntegrator
 from odetoolbox.spike_generator import SpikeGenerator
-from tests.test_utils import import_matplotlib
+from odetoolbox.test_utils import import_matplotlib
 
 
 mpl, plt = import_matplotlib()

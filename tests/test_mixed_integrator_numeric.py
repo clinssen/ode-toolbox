@@ -32,7 +32,7 @@ except ImportError:
 
 import odetoolbox
 from odetoolbox.mixed_integrator import MixedIntegrator
-from tests.test_utils import _open_json, import_matplotlib
+from odetoolbox.test_utils import load_json, import_matplotlib
 
 
 mpl, plt = import_matplotlib()
@@ -119,7 +119,7 @@ def test_mixed_integrator_numeric(**kwargs):
     integrator = odeiv.step_rk4
 
     for alias_spikes in [True, False]:
-        indict = _open_json("iaf_cond_alpha.json")
+        indict = load_json("iaf_cond_alpha.json")
         h_min, h_avg, runtime, upper_bound_crossed, t_log, h_log, y_log, sym_list, analysis_json = _run_simulation(indict, alias_spikes, integrator)
 
         if ENABLE_PLOTS:

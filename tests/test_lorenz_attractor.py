@@ -23,7 +23,7 @@ import sympy
 import sympy.parsing.sympy_parser
 from odetoolbox.sympy_helpers import _sympy_parse_real
 
-from tests.test_utils import _open_json
+from odetoolbox.test_utils import load_json
 
 from .context import odetoolbox
 from odetoolbox.shapes import Shape
@@ -37,7 +37,7 @@ except ImportError:
 
 class TestLorenzAttractor:
     def test_lorenz_attractor(self):
-        indict = _open_json("lorenz_attractor.json")
+        indict = load_json("lorenz_attractor.json")
         solver_dict = odetoolbox.analysis(indict, disable_stiffness_check=not PYGSL_AVAILABLE)
         assert len(solver_dict) == 1
         solver_dict = solver_dict[0]

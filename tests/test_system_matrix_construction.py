@@ -24,13 +24,13 @@ import sympy
 from odetoolbox import _from_json_to_shapes
 from odetoolbox.sympy_helpers import _sympy_parse_real
 from odetoolbox.system_of_shapes import SystemOfShapes
-from tests.test_utils import _open_json
+from odetoolbox.test_utils import load_json
 
 
 class TestSystemMatrixConstruction:
 
     def test_system_matrix_construction(self):
-        indict = _open_json("system_matrix_test.json")
+        indict = load_json("system_matrix_test.json")
         shapes, parameters = _from_json_to_shapes(indict)
         sigma, beta = sympy.symbols("sigma beta", real=True)
         shape_sys = SystemOfShapes.from_shapes(shapes, parameters=parameters)
@@ -43,7 +43,7 @@ class TestSystemMatrixConstruction:
                                              [x * y]])
 
     def test_lorenz_attractor(self):
-        indict = _open_json("lorenz_attractor.json")
+        indict = load_json("lorenz_attractor.json")
         shapes, parameters = _from_json_to_shapes(indict)
         sigma, beta, rho = sympy.symbols("sigma beta rho", real=True)
         shape_sys = SystemOfShapes.from_shapes(shapes, parameters=parameters)
@@ -56,7 +56,7 @@ class TestSystemMatrixConstruction:
                                              [x * y]])
 
     def test_morris_lecar(self):
-        indict = _open_json("morris_lecar.json")
+        indict = load_json("morris_lecar.json")
         shapes, parameters = _from_json_to_shapes(indict)
         shape_sys = SystemOfShapes.from_shapes(shapes, parameters=parameters)
         C_m, g_Ca, g_K, g_L, E_Ca, E_K, E_L, I_ext = sympy.symbols("C_m g_Ca g_K g_L E_Ca E_K E_L I_ext", real=True)

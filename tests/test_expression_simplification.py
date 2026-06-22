@@ -21,10 +21,11 @@
 
 import numpy as np
 import pytest
-from tests.test_mixed_integrator_numeric import _run_simulation
-from tests.test_utils import _open_json
 
 import odetoolbox
+from odetoolbox.test_utils import load_json
+from tests.test_mixed_integrator_numeric import _run_simulation
+
 
 try:
     import pygsl.odeiv as odeiv
@@ -47,7 +48,7 @@ def test_expression_simplification():
     for preserve_expressions, simplify_expression in opts:
         print("Running test with preserve_expressions = " + str(preserve_expressions) + ", simplify_expression = " + str(simplify_expression))
 
-        indict = _open_json("eiaf_cond_alpha.json")
+        indict = load_json("eiaf_cond_alpha.json")
         if "options" not in indict.keys():
             indict["options"] = {}
         indict["options"]["simplify_expression"] = simplify_expression

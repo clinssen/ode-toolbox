@@ -22,7 +22,7 @@
 import pytest
 
 import odetoolbox
-from tests.test_utils import _open_json
+from odetoolbox.test_utils import load_json
 
 try:
     import pygsl
@@ -35,7 +35,7 @@ except ImportError:
 class TestStiffnessChecker:
 
     def test_canonical_stiff_system(self):
-        indict = _open_json("stiff_system.json")
+        indict = load_json("stiff_system.json")
 
         indict["parameters"]["a"] = "-100"
         result = odetoolbox.analysis(indict, disable_analytic_solver=True, disable_stiffness_check=not PYGSL_AVAILABLE)
@@ -48,7 +48,7 @@ class TestStiffnessChecker:
                and result[0]["solver"].endswith("explicit")
 
     def test_morris_lecar_stiff(self):
-        indict = _open_json("morris_lecar.json")
+        indict = load_json("morris_lecar.json")
 
         indict["options"]["integration_accuracy_abs"] = 1E-9
         indict["options"]["integration_accuracy_rel"] = 1E-9
