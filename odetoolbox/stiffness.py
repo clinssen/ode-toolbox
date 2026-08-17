@@ -21,8 +21,6 @@
 
 import logging
 import numpy as np
-import numpy.random
-import sympy
 
 from odetoolbox.sympy_helpers import _sympy_parse_real
 
@@ -30,15 +28,6 @@ from .mixed_integrator import MixedIntegrator
 from .mixed_integrator import ParametersIncompleteException
 from .shapes import Shape
 from .spike_generator import SpikeGenerator
-
-
-try:
-    import pygsl.odeiv as odeiv
-    PYGSL_AVAILABLE = True
-except ImportError as ie:
-    logging.getLogger(__name__).warning("PyGSL is not available. The stiffness test will be skipped.")
-    logging.getLogger(__name__).warning("Error when importing: " + str(ie))
-    PYGSL_AVAILABLE = False
 
 
 class StiffnessTester:
@@ -95,23 +84,29 @@ class StiffnessTester:
         assert value >= 0
         self._random_seed = value
 
-    def check_stiffness(self, raise_errors=False):
+    def check_stiffness(self, raise_errors=False) -> str:
         r"""
         Perform stiffness testing: use implicit and explicit solvers to simulate the dynamical system, then decide which is the better solver to use.
 
         For details, see https://ode-toolbox.readthedocs.io/en/latest/index.html#numeric-solver-selection-criteria
 
         :return: Either :python:`"implicit"`, :python:`"explicit"` or :python:`"warning"`.
-        :rtype: str
         """
-        assert PYGSL_AVAILABLE
+
+        try:
+            import pygsl.odeiv as odeiv
+        except ImportError as ie:
+            error_msg = "Stiffness test requested, but PyGSL is not available"
+            logging.getLogger(__name__).error(error_msg)
+            raise Exception(error_msg)
 
         try:
             step_min_exp, step_average_exp, runtime_exp = self._evaluate_integrator(odeiv.step_rk4, raise_errors=raise_errors)
             step_min_imp, step_average_imp, runtime_imp = self._evaluate_integrator(odeiv.step_bsimp, raise_errors=raise_errors)
         except ParametersIncompleteException:
-            logging.getLogger(__name__).warning("Stiffness test not possible because numerical values were not specified for all parameters.")
-            return None
+            error_msg = "Stiffness test not possible because numerical values were not specified for all parameters."
+            logging.getLogger(__name__).error(error_msg)
+            raise Exception(error_msg)
 
         # logging.getLogger(__name__).info("runtime (imp:exp): %f:%f" % (runtime_imp, runtime_exp))
 
@@ -131,8 +126,6 @@ class StiffnessTester:
         :return h_avg: Average recommended step size.
         :return runtime: Wall clock runtime.
         """
-        assert PYGSL_AVAILABLE
-
         np.random.seed(self.random_seed)
 
         spike_times = SpikeGenerator.spike_times_from_json(self._stimuli, self.sim_time)
@@ -161,7 +154,7 @@ class StiffnessTester:
 
         return h_min, h_avg, runtime
 
-    def _draw_decision(self, step_min_imp, step_min_exp, step_average_imp, step_average_exp, machine_precision_dist_ratio=10, avg_step_size_ratio=6):
+    def _draw_decision(self, step_min_imp, step_min_exp, step_average_imp, step_average_exp, machine_precision_dist_ratio=10, avg_step_size_ratio=6) -> str:
         r"""
         Decide which is the best integrator to use.
 

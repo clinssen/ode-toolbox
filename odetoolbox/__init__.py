@@ -33,17 +33,6 @@ from .shapes import MalformedInputException, Shape
 
 
 try:
-    import pygsl.odeiv as odeiv
-    PYGSL_AVAILABLE = True
-except ImportError as ie:
-    logging.getLogger(__name__).warning("PyGSL is not available. The stiffness test will be skipped.")
-    logging.getLogger(__name__).warning("Error when importing: " + str(ie))
-    PYGSL_AVAILABLE = False
-
-if PYGSL_AVAILABLE:
-    from .stiffness import StiffnessTester
-
-try:
     logging.getLogger("graphviz").setLevel(logging.ERROR)
     import graphviz
     PLOT_DEPENDENCY_GRAPH = True
@@ -292,8 +281,7 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
         solver_json = sub_sys.generate_numeric_solver(state_variables=shape_sys.x_)
         solver_json["solver"] = "numeric"   # will be appended to if stiffness testing is used
         if not disable_stiffness_check:
-            if not PYGSL_AVAILABLE:
-                raise Exception("Stiffness test requested, but PyGSL not available")
+            from .stiffness import StiffnessTester
 
             logging.getLogger(__name__).info("Performing stiffness test...")
             kwargs = {}   # type: Dict[str, Any]
