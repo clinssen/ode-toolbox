@@ -18,13 +18,16 @@
 # You should have received a copy of the GNU General Public License
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
 #
+
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import json
 import logging
+import os
 import sys
 import sympy
 from sympy.core.expr import Expr as SympyExpr
+import tempfile
 
 from .config import Config
 from .sympy_helpers import _check_numerical_issue, _check_forbidden_name, _find_in_matrix, _is_zero, _is_sympy_type, SympyPrinter, _sympy_parse_real
@@ -65,14 +68,7 @@ def _find_analytically_solvable_equations(shape_sys, shapes, parameters=None):
     logging.getLogger(__name__).debug("Finding analytically solvable equations...")
     dependency_edges = shape_sys.get_dependency_edges()
 
-    if PLOT_DEPENDENCY_GRAPH:
-        node_is_analytically_solvable = {sym: False for sym in list(shape_sys.x_)}
-        DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn="/tmp/ode_dependency_graph.dot")
-
     node_is_analytically_solvable = shape_sys.get_lin_cc_symbols(dependency_edges, parameters=parameters)
-
-    if PLOT_DEPENDENCY_GRAPH:
-        DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn="/tmp/ode_dependency_graph_analytically_solvable_before_propagated.dot")
 
     # cannot analytically solve inhomogeneous, order > 1 shapes
     for i in range(len(shape_sys.x_)):
@@ -85,8 +81,9 @@ def _find_analytically_solvable_equations(shape_sys, shapes, parameters=None):
                 node_is_analytically_solvable[shape_sys.x_[i]] = False
 
     node_is_analytically_solvable = shape_sys.propagate_lin_cc_judgements(node_is_analytically_solvable, dependency_edges)
+
     if PLOT_DEPENDENCY_GRAPH:
-        DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn="/tmp/ode_dependency_graph_analytically_solvable.dot")
+        DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn=os.path.join(tempfile.gettempdir(), "ode_dependency_graph.dot"))
 
     return dependency_edges, node_is_analytically_solvable
 
