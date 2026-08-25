@@ -18,30 +18,22 @@
 # You should have received a copy of the GNU General Public License
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
 #
+
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import json
 import logging
+import os
 import sys
 import sympy
 from sympy.core.expr import Expr as SympyExpr
+import tempfile
 
 from .config import Config
 from .sympy_helpers import _check_numerical_issue, _check_forbidden_name, _find_in_matrix, _is_zero, _is_sympy_type, SympyPrinter, _sympy_parse_real
 from .system_of_shapes import SystemOfShapes
 from .shapes import MalformedInputException, Shape
 
-
-try:
-    import pygsl.odeiv as odeiv
-    PYGSL_AVAILABLE = True
-except ImportError as ie:
-    logging.getLogger(__name__).warning("PyGSL is not available. The stiffness test will be skipped.")
-    logging.getLogger(__name__).warning("Error when importing: " + str(ie))
-    PYGSL_AVAILABLE = False
-
-if PYGSL_AVAILABLE:
-    from .stiffness import StiffnessTester
 
 try:
     logging.getLogger("graphviz").setLevel(logging.ERROR)
@@ -65,14 +57,7 @@ def _find_analytically_solvable_equations(shape_sys, shapes, parameters=None):
     logging.getLogger(__name__).debug("Finding analytically solvable equations...")
     dependency_edges = shape_sys.get_dependency_edges()
 
-    if PLOT_DEPENDENCY_GRAPH:
-        node_is_analytically_solvable = {sym: False for sym in list(shape_sys.x_)}
-        DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn="/tmp/ode_dependency_graph.dot")
-
     node_is_analytically_solvable = shape_sys.get_lin_cc_symbols(dependency_edges, parameters=parameters)
-
-    if PLOT_DEPENDENCY_GRAPH:
-        DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn="/tmp/ode_dependency_graph_analytically_solvable_before_propagated.dot")
 
     # cannot analytically solve inhomogeneous, order > 1 shapes
     for i in range(len(shape_sys.x_)):
@@ -85,8 +70,9 @@ def _find_analytically_solvable_equations(shape_sys, shapes, parameters=None):
                 node_is_analytically_solvable[shape_sys.x_[i]] = False
 
     node_is_analytically_solvable = shape_sys.propagate_lin_cc_judgements(node_is_analytically_solvable, dependency_edges)
+
     if PLOT_DEPENDENCY_GRAPH:
-        DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn="/tmp/ode_dependency_graph_analytically_solvable.dot")
+        DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn=os.path.join(tempfile.gettempdir(), "ode_dependency_graph.dot"))
 
     return dependency_edges, node_is_analytically_solvable
 
@@ -292,8 +278,7 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
         solver_json = sub_sys.generate_numeric_solver(state_variables=shape_sys.x_)
         solver_json["solver"] = "numeric"   # will be appended to if stiffness testing is used
         if not disable_stiffness_check:
-            if not PYGSL_AVAILABLE:
-                raise Exception("Stiffness test requested, but PyGSL not available")
+            from .stiffness import StiffnessTester
 
             logging.getLogger(__name__).info("Performing stiffness test...")
             kwargs = {}   # type: Dict[str, Any]
