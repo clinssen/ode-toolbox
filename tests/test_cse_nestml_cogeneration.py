@@ -34,38 +34,24 @@ class TestCSECodeGeneration:
     # @pytest.mark.parametrize("use_alternative_expM", [True, False])
     # @pytest.mark.parametrize("tau_1, tau_2", [(10., 2.), (10., 10.)])
          
-    def test_cse_no_common_expression():
+    def test_cse_no_common_expression(self):
 
         """"
         This script provides a test for an analytical solver cse, utilising the generate_propagator_solver()
         """
 
-        x, y = sympy.symbols("x y", real=True)
+        x, y, z = sympy.symbols("x y z", real=True)
 
-        indict = {
-            "dynamics": [ # mocking indict that will be passed into _analysis 
-                { 
-                    "expression": "x' = x + 1",
-                    "initial_value": "1",
-                },
-                {
-                    "expression": "y' = y + 1", 
-                    "initial_value": "2",
-                }
-            ]
+        expressions = { 
+            "a": sympy.exp(x * y + z), 
+            "b": x + y,
         }
 
-
         # Explicitly testing the False behavior
-        result = odetoolbox.analysis(
-            indict, 
-            enable_cse=True
-        )
-
-
-        # Check that 'cse' key was not added to the root dictionary
-        assert "cse" not in result 
-
+        replacement, reduced = eo._run_profitable_cse(expressions, "__test_", solver_name="test_solver", region_name="no_reuse") 
+    
+        assert replacement == []
+        assert reduced == expressions
 
 
     def test_cse_preserves_expression():
@@ -96,8 +82,6 @@ class TestCSECodeGeneration:
 
         # enforce logic that optimisation must decrease operations 
         assert after < before, f"Optimisation failed, cost did not decrease. Before: {before}. After: {after}"
-
-
 
 
     def test_cse_preserves_condition_solver():
@@ -393,3 +377,90 @@ class TestCSECodeGeneration:
         )
 
         assert(default_result == explicitly_disabled_result)
+
+
+    def test_cse_machine_aware_rejected(self):
+
+        """
+        Tests that adding ops vs exponential ops have different values and therefore can get rejected / accepted based on this. 
+        """
+
+        # low-cost reuse 
+        x, y, z = sympy.symbols("x y z",real=True)
+
+        # low-cost reuse 
+        expressions = {
+            "a": x + y,  
+            "b": x + y + z,
+        }
+
+        replacements, reduced = eo._run_profitable_cse(
+            expressions,
+            symbol_prefix="__test_cse_",
+            solver_name ="test_solver",
+            region_name="cheap_reuse")
+
+        assert replacements == []
+        assert reduced == expressions
+
+
+    def test_cse_machine_aware_accepted(self):
+
+        """
+        Tests that adding ops vs exponential ops have different values and therefore can get rejected / accepted based on this. 
+        """
+
+        # high-cost reuse 
+        x, y, z = sympy.symbols("x y z",real=True)
+
+        common = sympy.exp(x * y + z)
+
+
+        expressions = { 
+            "a": common + x, 
+            "b": common + y,
+            "c": common + z,
+            "d": common + x,
+        }
+
+        replacements, reduced = eo._run_profitable_cse(
+            expressions,
+            symbol_prefix="__test_cse_",
+            solver_name ="test_solver",
+            region_name="expensive_reuse")
+
+        assert replacements
+        assert reduced != expressions
+
+
+    def test_machine_aware_cost_simple_operations(self):
+
+        x, y = sympy.symbols("x y")
+
+        assert eo.weighted_expression_cost(x) == 0.0
+        assert eo.weighted_expression_cost(x + y) == 1.0 
+        assert eo.weighted_expression_cost(x * y) == 1.0 
+
+        add_cost = eo.weighted_expression_cost(x + y) 
+        exp_cost = eo.weighted_expression_cost(sympy.exp(x + y))
+
+        assert exp_cost > add_cost
+        assert exp_cost == 9.0 # with current weighted params. 
+
+
+    def test_temporary_pressure_penality(self):
+
+        assert eo.temporary_pressure_penalty(0) == 0
+        assert eo.temporary_pressure_penalty(4) == 0
+        assert eo.temporary_pressure_penalty(5) == 1
+        assert eo.temporary_pressure_penalty(6) == 4
+        assert eo.temporary_pressure_penalty(8) == 16
+    
+    def test_machine_aware_division_costs(self):
+
+        x,y = sympy.symbols("x y")
+        multiply_cost = eo.weighted_expression_cost(x * y)
+        division_cost = eo.weighted_expression_cost(x / y)
+
+        print(f"multi cost: {multiply_cost}, division cost: {division_cost}") # multi 1.0 division 5.0 
+        assert division_cost > multiply_cost 
