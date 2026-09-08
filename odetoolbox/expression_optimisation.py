@@ -29,7 +29,7 @@ reconstruction and validation helpers live in tests/cse_test_utils.py
 import logging 
 import sympy 
 
-OP_WEIGHTS = { # define weights of expressions 
+OP_WEIGHTS = { # define individual weights of expressions 
         sympy.Add: 1.0,
         sympy.Mul: 1.0,
         sympy.Pow: 4.0,
@@ -40,8 +40,7 @@ OP_WEIGHTS = { # define weights of expressions
     } # can be adjusted iteratively 
 
 TEMPORARY_OVERHEAD = 1.0
-MIN_TEMPORARY_NET_BENEFIT = 3.0 # optimal after sweeps
-
+MIN_TEMPORARY_NET_BENEFIT = 3.0 # optimal value after sweeps
 
 def common_subexpression_elimination(expressions, symbol_prefix="__ode_cse_tmp__"):
     """
@@ -238,7 +237,7 @@ def filter_cse_replacements(
     kept_replacements = []
     substitutions = {}  # Maps rejected temporary symbols back to their expressions.
 
-    for index, (symbol, expression) in enumerate(replacements):
+    for index, (symbol, expression) in enumerate(replacements): # evaluating each temporary 
 
         # Inline any earlier temporary that was rejected.
         expression = expression.xreplace(substitutions)
@@ -247,22 +246,21 @@ def filter_cse_replacements(
         # rejected substitutions have been inlined.
         remaining_replacements = [
             (later_symbol, later_expr.xreplace(substitutions))
-            for later_symbol, later_expr in replacements[index + 1:]]
+            for later_symbol, later_expr in replacements[index + 1:]] # ensures we dont reject some tmp variables that are used later in expressions 
 
         current_reduced = {
             name: expr.xreplace(substitutions)
             for name, expr in reduced_expressions.items()}
 
-        uses = count_symbol_uses(symbol,remaining_replacements,current_reduced)
-        expression_cost = weighted_expression_cost(expression)
-        gross_benefit = (expression_cost * max(0, uses - 1))
-        net_benefit = (gross_benefit - TEMPORARY_OVERHEAD)
+        # for each temporary..
+        uses = count_symbol_uses(symbol,remaining_replacements,current_reduced) # count number of times a specific variable is used in the rest of the script 
+        expression_cost = weighted_expression_cost(expression) # weighted expression cost 
+        gross_benefit = (expression_cost * max(0, uses - 1)) # calculate gross beneft of using tmp with expression cost and uses 
+        net_benefit = (gross_benefit - TEMPORARY_OVERHEAD) # tmp overhead cost for allocating memory for the new tmp variable. 
 
-        if net_benefit >= min_net_benefit:
+        if net_benefit >= min_net_benefit: # greater than 3
 
-            kept_replacements.append(
-                (symbol, expression)
-            )
+            kept_replacements.append((symbol, expression))
 
             logger.debug(
                 "[CSE TEMP] symbol=%s "
@@ -298,11 +296,11 @@ def filter_cse_replacements(
                 net_benefit,
                 expression)
 
-    # Inline every rejected temporary into surviving replacement
-    # expressions and final outputs.
+    # Inline every rejected temporary variable into surviving replacement expressions so we have template of accepted/rejections
     final_replacements = [(symbol,expression.xreplace(substitutions))
         for symbol, expression in kept_replacements]
 
+    # final output for mathematical expressions 
     final_reduced = {name: expression.xreplace(substitutions) for name, expression in reduced_expressions.items()}
 
     return final_replacements, final_reduced
