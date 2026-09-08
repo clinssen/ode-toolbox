@@ -20,16 +20,16 @@
 #
 
 """
-Expression optimisation helpers used by the ODE-toolbox analysis pipeline. 
+Expression optimisation helpers used by the ODE-toolbox analysis pipeline.
 
-This module contains only runtime common subexpression elimination (CSE) functionality. Test-specific 
-reconstruction and validation helpers live in tests/cse_test_utils.py 
+This module contains only runtime common subexpression elimination (CSE) functionality. Test-specific
+reconstruction and validation helpers live in tests/cse_test_utils.py
 """
 
-import logging 
-import sympy 
+import logging
+import sympy
 
-OP_WEIGHTS = { # define individual weights of expressions 
+OP_WEIGHTS = { # define individual weights of expressions
         sympy.Add: 1.0,
         sympy.Mul: 1.0,
         sympy.Pow: 4.0,
@@ -37,7 +37,7 @@ OP_WEIGHTS = { # define individual weights of expressions
         sympy.log: 8.0,
         sympy.sin: 8.0,
         sympy.cos: 8.0,
-    } # can be adjusted iteratively 
+    } # can be adjusted iteratively
 
 TEMPORARY_OVERHEAD = 1.0
 MIN_TEMPORARY_NET_BENEFIT = 3.0 # optimal value after sweeps
@@ -45,7 +45,7 @@ MIN_TEMPORARY_NET_BENEFIT = 3.0 # optimal value after sweeps
 def common_subexpression_elimination(expressions, symbol_prefix="__ode_cse_tmp__"):
     """
     custom wrapper to perform common subexpression elimination across mapping of a
-    named sympy expression while preserving expression ordering. 
+    named sympy expression while preserving expression ordering.
     """
 
     if not expressions: # if expressions are empty
@@ -63,7 +63,7 @@ def common_subexpression_elimination(expressions, symbol_prefix="__ode_cse_tmp__
 
     #  infinite generator for the temp local variables to hold isolated math subexpressions
     temporary_symbols = sympy.numbered_symbols(symbol_prefix)
-   
+
 
     # perform cse
     replacements, reduced_values = sympy.cse(
@@ -82,16 +82,16 @@ def common_subexpression_elimination(expressions, symbol_prefix="__ode_cse_tmp__
 
 def count_operations(expressions):
     """
-    Count the total symbolic operations in an iterable of SymPy expressions. 
+    Count the total symbolic operations in an iterable of SymPy expressions.
     """
-    
-    #counting number of mathematical operations from the original equation 
+
+    #counting number of mathematical operations from the original equation
     return sum(int(sympy.count_ops(expression)) for expression in expressions)
 
 
-def count_cse_operations(replacements, reduced_expressions): 
+def count_cse_operations(replacements, reduced_expressions):
     """
-    Count operations required after CSE. helper includes calculating the extracted temporary expressions & reduced output expressions 
+    Count operations required after CSE. helper includes calculating the extracted temporary expressions & reduced output expressions
     """
 
     # Extract operational cost for main simplified expressions
@@ -100,21 +100,21 @@ def count_cse_operations(replacements, reduced_expressions):
     # count operations inside the temporary placeholder variables
     replacement_cost = sum(int(sympy.count_ops(expr)) for _, expr in replacements)
 
-    return (replacement_cost + reduced_cost) # total cost of expressions and temporary values before weight scaling 
+    return (replacement_cost + reduced_cost) # total cost of expressions and temporary values before weight scaling
 
 def weighted_expression_cost(expr):
     """
     estimate expression cost using operation-specific weights, where adding expr has low weight etc. and sin(x) has high weight
 
-    this is a heuristic machine-aware cost, not a prediciton of exact CPU cycles or instruction counts. 
-    """  
+    this is a heuristic machine-aware cost, not a prediciton of exact CPU cycles or instruction counts.
+    """
 
     if not isinstance(expr, sympy.Basic):
         raise TypeError(f"weighted expression costs expect a SymPy expression. Received : {type(expr).__name__}")
 
-    if expr.is_Atom: # individual numbers/ symbols doesnt require any calculation 
-        return 0.0 
-    
+    if expr.is_Atom: # individual numbers/ symbols doesnt require any calculation
+        return 0.0
+
     # Look up the cost of the current operation (defualt 1.0)
     weight = OP_WEIGHTS.get(expr.func, 1.0)  # expr.func tells us if it's an Add, Mul, Pow, sin, exp, etc.
 
@@ -123,23 +123,23 @@ def weighted_expression_cost(expr):
     else:
         own_cost = weight
 
-    child_cost = sum(weighted_expression_cost(arg) for arg in expr.args) # calculate cost and every expression inside them 
+    child_cost = sum(weighted_expression_cost(arg) for arg in expr.args) # calculate cost and every expression inside them
 
     return own_cost + child_cost
 
 
 def count_symbol_uses(symbol, remaining_replacements, reduced_expressions):
     """
-    count how many times a cse temporary symbol is referred by later replacements and later final reduced expressions 
+    count how many times a cse temporary symbol is referred by later replacements and later final reduced expressions
     """
-    uses = 0 
+    uses = 0
 
     for _, expr in remaining_replacements:
         uses += expr.count(symbol)
-    
+
     for expr in reduced_expressions.values():
         uses += expr.count(symbol)
-    
+
     return uses
 
 def estimate_total_cost(expressions):
@@ -237,7 +237,7 @@ def filter_cse_replacements(
     kept_replacements = []
     substitutions = {}  # Maps rejected temporary symbols back to their expressions.
 
-    for index, (symbol, expression) in enumerate(replacements): # evaluating each temporary 
+    for index, (symbol, expression) in enumerate(replacements): # evaluating each temporary
 
         # Inline any earlier temporary that was rejected.
         expression = expression.xreplace(substitutions)
@@ -246,17 +246,17 @@ def filter_cse_replacements(
         # rejected substitutions have been inlined.
         remaining_replacements = [
             (later_symbol, later_expr.xreplace(substitutions))
-            for later_symbol, later_expr in replacements[index + 1:]] # ensures we dont reject some tmp variables that are used later in expressions 
+            for later_symbol, later_expr in replacements[index + 1:]] # ensures we dont reject some tmp variables that are used later in expressions
 
         current_reduced = {
             name: expr.xreplace(substitutions)
             for name, expr in reduced_expressions.items()}
 
         # for each temporary..
-        uses = count_symbol_uses(symbol,remaining_replacements,current_reduced) # count number of times a specific variable is used in the rest of the script 
-        expression_cost = weighted_expression_cost(expression) # weighted expression cost 
-        gross_benefit = (expression_cost * max(0, uses - 1)) # calculate gross beneft of using tmp with expression cost and uses 
-        net_benefit = (gross_benefit - TEMPORARY_OVERHEAD) # tmp overhead cost for allocating memory for the new tmp variable. 
+        uses = count_symbol_uses(symbol,remaining_replacements,current_reduced) # count number of times a specific variable is used in the rest of the script
+        expression_cost = weighted_expression_cost(expression) # weighted expression cost
+        gross_benefit = (expression_cost * max(0, uses - 1)) # calculate gross beneft of using tmp with expression cost and uses
+        net_benefit = (gross_benefit - TEMPORARY_OVERHEAD) # tmp overhead cost for allocating memory for the new tmp variable.
 
         if net_benefit >= min_net_benefit: # greater than 3
 
@@ -300,7 +300,7 @@ def filter_cse_replacements(
     final_replacements = [(symbol,expression.xreplace(substitutions))
         for symbol, expression in kept_replacements]
 
-    # final output for mathematical expressions 
+    # final output for mathematical expressions
     final_reduced = {name: expression.xreplace(substitutions) for name, expression in reduced_expressions.items()}
 
     return final_replacements, final_reduced
@@ -334,7 +334,7 @@ def _contains_nonfinite_expression(expressions):
     """
     This is check before CSE occurs to check for symbolic infinities. This looks at an equation and determiens
     that it will always evaluate to infinity or divide by 0, regardless of the numerical values you pass.
-    
+
     This is secondary sanity check, as all symbolic infinities should theortically be filtered out
     by the singularity conditions.
     """
@@ -359,8 +359,8 @@ def _contains_internal_control_flow(expressions):
 
     """
     If a sympy.Piecewise object is hidden inside an expression, it introduces hidden branching logic. If CSE blindly pulls an equation out from inside a
-    Piecewise condition and places it at the global scope (when it has a local conditional specifications), it forces the CPU to compute it all the time. 
-    
+    Piecewise condition and places it at the global scope (when it has a local conditional specifications), it forces the CPU to compute it all the time.
+
     This ruins your conditional optimization and can lead to runtime NaN crashes or division-by-zero errors. This acts a secondary safety check before cse.
     """
 
@@ -377,7 +377,7 @@ def _apply_cse_to_expression_region(region, symbol_prefix, solver_name="unknown"
     The condition controlling execution region is not modified, and therefore this function should never
     receive multiple singularity branches as this function does not hold logic for interpreting these singularities.
 
-    'propagator' 'update_expressions' are also handled differently as they are executed in different contexts down stream. 
+    'propagator' 'update_expressions' are also handled differently as they are executed in different contexts down stream.
     """
 
     result = dict(region)
@@ -404,7 +404,7 @@ def _apply_cse_to_expression_region(region, symbol_prefix, solver_name="unknown"
         logger.debug("Skipping CSE for region %s: nested SymPy Piecewise expression detected", symbol_prefix)
         return result
 
-    # analytical 
+    # analytical
     if region.get("propagators"):
         replacements, reduced = _run_profitable_cse(
             region["propagators"], symbol_prefix + "prop_",
@@ -413,7 +413,7 @@ def _apply_cse_to_expression_region(region, symbol_prefix, solver_name="unknown"
             result["propagators"] = reduced
             cse_data["propagators"] = replacements
 
-    # numerical state update expressions 
+    # numerical state update expressions
     if region.get("update_expressions"):
         replacements, reduced = _run_profitable_cse(
             region["update_expressions"], symbol_prefix + "update_",
@@ -421,7 +421,7 @@ def _apply_cse_to_expression_region(region, symbol_prefix, solver_name="unknown"
         if replacements:
             result["update_expressions"] = reduced
             cse_data["update_expressions"] = replacements
-            
+
     if cse_data:
         result["cse"] = cse_data # output data
 
@@ -431,7 +431,7 @@ def _apply_cse_to_expression_region(region, symbol_prefix, solver_name="unknown"
 def apply_cse_to_solver(solver, symbol_prefix="__ode_cse_", optimise_condition_branches=False):
 
     """
-    Apply CSE to one ODE-toolbox solver dictionary. Singularity branches are treated as independent execution regions. 
+    Apply CSE to one ODE-toolbox solver dictionary. Singularity branches are treated as independent execution regions.
     """
 
     result = dict(solver)
@@ -457,17 +457,17 @@ def apply_cse_to_solver(solver, symbol_prefix="__ode_cse_", optimise_condition_b
 
         return result # return result if we've conducted cse singularity
 
-    # ordinary analytical or numerical solver passing. 
+    # ordinary analytical or numerical solver passing.
     return _apply_cse_to_expression_region(solver, symbol_prefix=symbol_prefix, solver_name=solver_name)
 
 
 def _apply_cse_to_solver_blocks(solver_blocks, optimise_condition_branches=False):
 
     """
-    Apply CSE independently to every solver block produced by ODEtoolbox 
-    
+    Apply CSE independently to every solver block produced by ODEtoolbox
+
     A mixed system can contain both analytical and numerical blocks. Give each block a seperate tmp variable namespace so that CSE
-    temporaries cannot leak or collide across solver blocks. 
+    temporaries cannot leak or collide across solver blocks.
     """
 
     if not isinstance(solver_blocks, list):
@@ -476,7 +476,7 @@ def _apply_cse_to_solver_blocks(solver_blocks, optimise_condition_branches=False
 
 
     result = []
-    multiple_blocks = len(solver_blocks) > 1 
+    multiple_blocks = len(solver_blocks) > 1
 
     for block_index, solver in enumerate(solver_blocks):
 
@@ -489,14 +489,14 @@ def _apply_cse_to_solver_blocks(solver_blocks, optimise_condition_branches=False
             symbol_prefix = f"__ode_cse_solver_{block_index}_"
         else:
             symbol_prefix = f"__ode_cse_"
-        
+
         result.append(apply_cse_to_solver(solver, symbol_prefix=symbol_prefix, optimise_condition_branches=(optimise_condition_branches)))
 
-    return result 
+    return result
 
 def serialize_replacements(replacements):
     """
-    Convert CSE replacement tuples into JSON-safe metadata. 
+    Convert CSE replacement tuples into JSON-safe metadata.
     """
     # import pdb;pdb.set_trace()
 
@@ -534,15 +534,15 @@ def _find_non_json_serializable(obj, path="root"):
                 # Wrapped in a proper 3-element tuple inside the append
                 problems.append((f"{path}.<key>", type(key).__name__, repr(key)))
             problems.extend(_find_non_json_serializable(value, path=f"{path}[{key!r}]"))
-        return problems 
-    
+        return problems
+
     # Handle sequences
     if isinstance(obj, (list, tuple)):
         problems = []
         for index, value in enumerate(obj):
             problems.extend(_find_non_json_serializable(value, path=f"{path}[{index}]"))
-        return problems 
-        
+        return problems
+
     # Catch-all for non-serializable objects (like SymPy Symbols)
     # Corrected to a uniform list containing a single 3-element tuple
     return [(path, type(obj).__name__, repr(obj))]

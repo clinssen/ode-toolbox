@@ -27,7 +27,7 @@ import sympy
 from sympy.core.expr import Expr as SympyExpr
 
 from .config import Config
-from .sympy_helpers import _check_numerical_issue, _check_forbidden_name, _is_zero, _is_sympy_type, SympyPrinter, _sympy_parse_real # (PR107) removed _find_in_matrix logic helper function 
+from .sympy_helpers import _check_numerical_issue, _check_forbidden_name, _is_zero, _is_sympy_type, SympyPrinter, _sympy_parse_real # (PR107) removed _find_in_matrix logic helper function
 from .system_of_shapes import SystemOfShapes
 from .shapes import MalformedInputException, Shape
 from .expression_optimisation import (_apply_cse_to_solver_blocks, _serialize_replacements_metadata, _find_non_json_serializable)
@@ -42,7 +42,7 @@ except ImportError as ie:
     PYGSL_AVAILABLE = False
 
 if PYGSL_AVAILABLE:
-    from .stiffness import StiffnessTester # stability profiles of the heavy computational heavy eqs. 
+    from .stiffness import StiffnessTester # stability profiles of the heavy computational heavy eqs.
 
 try:
     logging.getLogger("graphviz").setLevel(logging.ERROR)
@@ -65,14 +65,14 @@ def _find_analytically_solvable_equations(shape_sys, shapes, parameters=None):
     """
     logging.getLogger(__name__).debug("Finding analytically solvable equations...")
 
-    dependency_edges = shape_sys.get_dependency_edges() # dependency edges of the ODE. building a graph showing which variables influence eachother 
+    dependency_edges = shape_sys.get_dependency_edges() # dependency edges of the ODE. building a graph showing which variables influence eachother
 
     if PLOT_DEPENDENCY_GRAPH:
 
-        node_is_analytically_solvable = {sym: False for sym in list(shape_sys.x_)} # checking for linear coefficients 
+        node_is_analytically_solvable = {sym: False for sym in list(shape_sys.x_)} # checking for linear coefficients
 
         # this function creates a dict mapping to each vairable to true (solvable) or false (not solvable / non-linear)
-        DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn="/tmp/ode_dependency_graph.dot") # 
+        DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn="/tmp/ode_dependency_graph.dot") #
 
     node_is_analytically_solvable = shape_sys.get_lin_cc_symbols(dependency_edges, parameters=parameters)
 
@@ -80,13 +80,13 @@ def _find_analytically_solvable_equations(shape_sys, shapes, parameters=None):
         DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn="/tmp/ode_dependency_graph_analytically_solvable_before_propagated.dot")
 
     # cannot analytically solve inhomogeneous, order > 1 shapes
-    for i in range(len(shape_sys.x_)): 
+    for i in range(len(shape_sys.x_)):
         if not _is_zero(shape_sys.b_[i]) and shape_sys.shape_order_from_system_matrix(i) > 1 and shape_sys.x_[i] in shape_sys.get_connected_symbols(i):
             node_is_analytically_solvable[shape_sys.x_[i]] = False
 
-    # (#PR107) removes the logic by _find_in_matrix for dependencies of neighbour ODE terms 
+    # (#PR107) removes the logic by _find_in_matrix for dependencies of neighbour ODE terms
 
-    # propagating the judgement, if variable a depends on variable b && variable b (unsolvable) therefore a is unsolvable 
+    # propagating the judgement, if variable a depends on variable b && variable b (unsolvable) therefore a is unsolvable
     node_is_analytically_solvable = shape_sys.propagate_lin_cc_judgements(node_is_analytically_solvable, dependency_edges)
     if PLOT_DEPENDENCY_GRAPH:
         DependencyGraphPlotter.plot_graph(shapes, dependency_edges, node_is_analytically_solvable, fn="/tmp/ode_dependency_graph_analytically_solvable.dot")
@@ -124,17 +124,17 @@ def _from_json_to_shapes(indict, parameters=None) -> Tuple[List[Shape], Dict[sym
         all_variable_symbols.extend(shape.get_state_variables())
         all_variable_symbols_.update(shape.get_state_variables(derivative_symbol=Config().differential_order_symbol))
         all_parameter_symbols.update(set(shape.reconstitute_expr().free_symbols))
-    all_parameter_symbols -= all_variable_symbols_ # building master list of every symbol used in nestml 
+    all_parameter_symbols -= all_variable_symbols_ # building master list of every symbol used in nestml
     del all_variable_symbols_
     assert all([_is_sympy_type(sym) for sym in all_variable_symbols])
 
-    # validate input for forbidden names prevent collisions 
+    # validate input for forbidden names prevent collisions
     for var in set(all_variable_symbols) | all_parameter_symbols:
         _check_forbidden_name(var)
         assert var.is_real
 
     # validate parameters
-    for param in all_parameter_symbols: # symbol flagged as param but doesnt have a starting num 
+    for param in all_parameter_symbols: # symbol flagged as param but doesnt have a starting num
         if parameters is None:
             parameters = dict()
 
@@ -146,7 +146,7 @@ def _from_json_to_shapes(indict, parameters=None) -> Tuple[List[Shape], Dict[sym
 
     # second run with the now-known list of variable symbols
     shapes = []
-    for shape_json in indict["dynamics"]: # precise definitions instiations with correct boundary terms 
+    for shape_json in indict["dynamics"]: # precise definitions instiations with correct boundary terms
         shape = Shape.from_json(shape_json, all_variable_symbols=all_variable_symbols, parameters=parameters)
         shapes.append(shape)
 
@@ -154,7 +154,7 @@ def _from_json_to_shapes(indict, parameters=None) -> Tuple[List[Shape], Dict[sym
 
 
 def _find_variable_definition(indict, name: str, order: int) -> Optional[str]:
-    r"""Find the definition (as a string in the input dictionary) of variable named ``name`` with order ``order``, and return it as a string. 
+    r"""Find the definition (as a string in the input dictionary) of variable named ``name`` with order ``order``, and return it as a string.
     Return None if a definition by that name and order could not be found."""
     for dyn in indict["dynamics"]:
         if "expression" in dyn.keys():
@@ -171,7 +171,7 @@ def _find_variable_definition(indict, name: str, order: int) -> Optional[str]:
 
 
 def _get_all_first_order_variables(indict) -> Iterable[str]:
-    r"""Return a list of variable names, 
+    r"""Return a list of variable names,
     containing those variables that were defined as a first-order ordinary differential equation in the input."""
     variable_names = []
 
@@ -182,9 +182,9 @@ def _get_all_first_order_variables(indict) -> Iterable[str]:
             exprs = dyn["expressions"]
 
         for expr in exprs:
-            name, order, rhs = Shape._parse_defining_expression(expr) # parsing the ode for (name(V''), order(2) then the mathematical expression string 
+            name, order, rhs = Shape._parse_defining_expression(expr) # parsing the ode for (name(V''), order(2) then the mathematical expression string
             if order == 1:
-                variable_names.append(name) # filters for first order 
+                variable_names.append(name) # filters for first order
 
     return variable_names
 
@@ -218,15 +218,15 @@ def symbol_appears_in_any_expr(param_name, solver_json) -> bool:
 def _analysis(indict, disable_stiffness_check: bool = False,
 disable_analytic_solver: bool = False,
 disable_singularity_detection: bool = False,
-disable_singularity_mitigation: bool = False, 
-use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False, 
-enable_cse: bool = False, 
-enable_cse_condition_branches: bool = False, 
+disable_singularity_mitigation: bool = False,
+use_alternative_expM: bool = False, preserve_expressions: Union[bool, Iterable[str]] = False,
+enable_cse: bool = False,
+enable_cse_condition_branches: bool = False,
 log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShapes, List[Shape]]:
     r"""
     Like analysis(), but additionally returns ``shape_sys`` and ``shapes``.
 
-    For internal use only. External code won't be relying on this but makes it a good area for debugging. 
+    For internal use only. External code won't be relying on this but makes it a good area for debugging.
     """
 
     # import sys;sys.setrecursionlimit(max(sys.getrecursionlimit(), 10000))
@@ -289,10 +289,10 @@ log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShape
     if analytic_syms:
         logging.getLogger(__name__).info("Generating propagators for the following symbols: " + ", ".join([str(k) for k in analytic_syms]))
         sub_sys = shape_sys.get_sub_system(analytic_syms)
-        
+
         # analytical subsystem chosen calling generate propagrator solver
         analytic_solver_json = sub_sys.generate_propagator_solver(disable_singularity_detection=disable_singularity_detection, disable_singularity_mitigation=disable_singularity_mitigation, use_alternative_expM=use_alternative_expM)
-        
+
         analytic_solver_json["solver"] = "analytical"
         solvers_json.append(analytic_solver_json)
 
@@ -327,14 +327,14 @@ log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShape
                 kwargs["analytic_solver_dict"] = analytic_solver_json
             tester = StiffnessTester(sub_sys, shapes, **kwargs)
             solver_type = tester.check_stiffness()
-            
+
             if not solver_type is None:
                 solver_json["solver"] += "-" + solver_type
                 logging.getLogger(__name__).info(solver_type + " scheme")
 
         solvers_json.append(solver_json)
 
-      
+
     #
     #   copy the initial values from the input to the output for convenience; convert to numeric values
     #
@@ -361,7 +361,7 @@ log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShape
             solver_json["parameters"] = {}
             for param_name, param_expr in indict["parameters"].items():
                 # only make parameters appear in a solver if they are actually used there
-                if symbol_appears_in_any_expr(sym, solver_json): # WARNING should param (sym) for metadata lookup 
+                if symbol_appears_in_any_expr(sym, solver_json): # WARNING should param (sym) for metadata lookup
                     sympy_expr = _sympy_parse_real(param_expr, global_dict=Shape._sympy_globals)
 
                     # validate output for numerical problems -- note that we skip checking for infinity here as some parameters (like "V_max") could be legitimately defined as infinity
@@ -376,29 +376,33 @@ log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShape
                         _check_numerical_issue(var, check_infty=False)
 
                     # appending parameter discovery to solver json
-                    solver_json["parameters"][param_name] = str(sympy_expr) 
+                    solver_json["parameters"][param_name] = str(sympy_expr)
 
-    # 
+    #
     # perform cse after parameter discovery whilst expressions are Sympy objects
     #
 
-    if enable_cse:  # if cse flag is enabled 
+    if enable_cse:  # if cse flag is enabled
 
         logging.getLogger(__name__).debug(
             "Applying CSE to %d solver block(s): %s",
             len(solvers_json), ", ".join(solver.get("solver", "unknown") for solver in solvers_json))
-            
+
         # pass solver dict as a list into blocks
         solvers_json = (_apply_cse_to_solver_blocks(solvers_json, optimise_condition_branches=enable_cse_condition_branches))
-            
+
+
 
     #
     #   convert expressions from sympy to string
-    #   
+    #
     #
 
     if type(preserve_expressions) is bool:
         if preserve_expressions:
+            if enable_cse:
+                raise Exception("Setting ``enable_cse`` to True requires setting ``preserve_expressions`` to False!")
+
             # grab all first-order variables
             preserve_expressions = _get_all_first_order_variables(indict)
         else:
@@ -413,7 +417,7 @@ log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShape
         raise MalformedInputException("``preserve_expressions`` parameter should be either a boolean or a list of strings corresponding to variable names")
 
     for solver_json in solvers_json:
-        
+
         #
         # conversion of update_blocks
         #
@@ -435,20 +439,20 @@ log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShape
         #
         # conversion of propagators
         #
-        
+
         if "propagators" in solver_json.keys():
             for sym, expr in solver_json["propagators"].items():
                 solver_json["propagators"][sym] = str(expr)
 
         #
-        # conversion of conditional analytical branches 
+        # conversion of conditional analytical branches
         #
 
 
         if "conditions" in solver_json.keys():
             for cond, cond_solver in solver_json["conditions"].items():
 
-                _serialize_replacements_metadata(cond_solver) # serialize singularity condition metadata. 
+                _serialize_replacements_metadata(cond_solver) # serialize singularity condition metadata.
 
                 if "update_expressions" in cond_solver:
                     for sym, expr in cond_solver["update_expressions"].items():
@@ -472,23 +476,24 @@ log_level: Union[str, int] = logging.WARNING) -> Tuple[List[Dict], SystemOfShape
                 if "cse" in solver_json:
                     _serialize_replacements_metadata(cond_solver) # CSE for conditional branches
 
-        # serialisation cse metadata belonging to this solver. 
-        if "cse" in solver_json:         
-            _serialize_replacements_metadata(solver_json) # CSE for top-level solvers 
-        
+        # serialisation cse metadata belonging to this solver.
+        if "cse" in solver_json:
+            _serialize_replacements_metadata(solver_json) # CSE for top-level solvers
+
 
     logging.getLogger(__name__).info("Final output result:")
+    logging.getLogger(__name__).info(json.dumps(solvers_json, indent=4, sort_keys=True))
 
     problems = _find_non_json_serializable(solver_json)
-    for path, type_name, value in problems: # specific json serialization debug 
+    for path, type_name, value in problems: # specific json serialization debug
         logging.getLogger(__name__).error("non-json value %s -> %s: %s",
         path, type_name, value)
 
     assert not problems, ("Non-JSON safe objects remain in solver_json")
 
-    # output log the json file 
-    json.dumps(solvers_json, indent=4, sort_keys=True)   # default hides bugs 
-    
+    # output log the json file
+    json.dumps(solvers_json, indent=4, sort_keys=True)   # default hides bugs
+
 
     return solvers_json, shape_sys, shapes
 
@@ -506,14 +511,14 @@ def _init_logging(log_level: Union[str, int] = logging.WARNING):
 
 
 def analysis(indict, disable_stiffness_check: bool = False,
- disable_analytic_solver: bool = False, 
- disable_singularity_detection: bool = False, 
- disable_singularity_mitigation: bool = False, 
- use_alternative_expM: bool = False, 
- enable_cse: bool = False, 
- enable_cse_condition_branches: bool = False, 
- preserve_expressions: Union[bool, Iterable[str]] = False, 
- 
+ disable_analytic_solver: bool = False,
+ disable_singularity_detection: bool = False,
+ disable_singularity_mitigation: bool = False,
+ use_alternative_expM: bool = False,
+ enable_cse: bool = False,
+ enable_cse_condition_branches: bool = False,
+ preserve_expressions: Union[bool, Iterable[str]] = False,
+
  log_level: Union[str, int] = logging.WARNING) -> List[Dict]:
     r"""
     The main entry point of the ODE-toolbox API.
@@ -526,8 +531,8 @@ def analysis(indict, disable_stiffness_check: bool = False,
     :param use_alternative_expM: If :python:`False`, use the sympy function ``sympy.exp`` to compute the matrix exponential. If :python:`True`, use an alternative function (see :py:func:`odetoolbox.sympy_helpers.expMt` for details). This can be useful as calls to ``sympy.exp`` can sometimes take a very large amount of time.
     :param preserve_expressions: Set to True, or a list of strings corresponding to individual variable names, to disable internal rewriting of expressions, and return same output as input expression where possible. Only applies to variables specified as first-order differential equations.
     :param log_level: Sets the logging threshold. Logging messages which are less severe than ``log_level`` will be ignored. Log levels can be provided as an integer or string, for example "INFO" (more messages) or "WARN" (fewer messages). For a list of valid logging levels, see https://docs.python.org/3/library/logging.html#logging-levels
-    :param enable_cse: Boolean flag set to False. If enabled it will perform sub-expression elimination on update_expression, propagators and singularity conditions of the generated .cpp nestml file. 
-    :param preserves_cse_condition_branches: Boolean flag set to false. Requires enable_cse=True for functionality. If enabled this will perform independent analysis of singularity condition branches. 
+    :param enable_cse: Boolean flag set to False. If enabled it will perform sub-expression elimination on update_expression, propagators and singularity conditions of the generated .cpp nestml file.
+    :param preserves_cse_condition_branches: Boolean flag set to false. Requires enable_cse=True for functionality. If enabled this will perform independent analysis of singularity condition branches.
 
     :return: The result of the analysis. For details, see https://ode-toolbox.readthedocs.io/en/latest/index.html#output
     """
