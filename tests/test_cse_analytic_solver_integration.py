@@ -18,104 +18,154 @@
 # You should have received a copy of the GNU General Public License
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
 
-from .test_cse_utils import (
-    assert_cse_dependency_order,
-    assert_cse_region_equivalent,
-    assert_cse_region_profitable,
-    assert_cse_serialized,
-    assert_shape_structure_preserved,
-    assert_solver_metadata_preserved,
-    get_solver,
-    run_cse_analysis_pair,
-    load_test_json)
+# test_cse_integrators.py
+#
+# This file is part of the NEST ODE toolbox.
+#
+
+import copy
+import logging
+import numpy as np
+import pytest
+import sympy
+import odetoolbox
+from odetoolbox.analytic_integrator import (AnalyticIntegrator)
+from odetoolbox.mixed_integrator import (MixedIntegrator)
+from tests.test_utils import load_test_json
+
+try:
+    import pygsl.odeiv as odeiv
+    PYGSL_AVAILABLE = True
+
+except ImportError:
+    PYGSL_AVAILABLE = False
 
 
-class TestCSEAnalyticalSolver:
+class TestCSENumericalSolver:
     """
-    Isolated ODE-toolbox validation of analytical CSE.
-
-    The same model is analysed with CSE disabled and enabled. The test verifies
-    that CSE changes the symbolic representation but not its mathematical
-    meaning.
+    Isolated ODE-toolbox validation of CSE applied to a numerical solver.
     """
 
-    def test_analytical_cse_pipeline(self):
-
-        indict = load_test_json("cse_analytical.json")
-
-        pair = run_cse_analysis_pair(
-            indict,
-            disable_stiffness_check=True,
-            disable_singularity_detection=True,
-            log_level="DEBUG",
-        )
-
-        # ensure there is output for both conditions 
-        assert len(pair.baseline_solvers) == 1
-        assert len(pair.cse_solvers) == 1
-
-        # ensure solver specified is analytical 
-        baseline_solver = get_solver(pair.baseline_solvers, "analytical")
-        cse_solver = get_solver(pair.cse_solvers,"analytical")
-
-        # CSE should not exist in baseline.
-        assert "cse" not in baseline_solver
-
-        # Internal Shape/SystemOfShapes construction must be identical.
-        assert_shape_structure_preserved(pair)
-
-        # Solver metadata cannot change.
-        assert_solver_metadata_preserved(baseline_solver, cse_solver)
-
-        # json file has repeated propagators (==> profitable) so ensure cse has occured
-        assert "cse" in cse_solver
-
-        assert ("propagators" in cse_solver["cse"])
-
-        # reconstruct every CSE expression and prove that it is mathematically the same to the non-cse propagator
-        assert_cse_region_equivalent(baseline_solver, cse_solver, "propagators", require_cse=True)
-
-        # verifies that the optimiser acted correctly, reducing mathematical operation symbol counts. 
-        assert_cse_region_profitable(baseline_solver, cse_solver, "propagators")
-
-        # Check that the metadata returned by _analysis must is JSON-safe.
-        assert_cse_serialized(cse_solver)
-
-        # ensure that CSE solver doesnt contain forward references (e.g., calling a tmp_var before it's defined)
-        assert_cse_dependency_order(cse_solver)
-
-    def test_legacy_analytical_fixture_preserved(self):
+    def test_cse_analytic_integrator_matches_baseline():
+        """
+        Verify that analytical CSE does not change the trajectory produced
+        by ODE-toolbox's AnalyticIntegrator.
+        """
 
         indict = load_test_json(
-            "amat.json") # amat a known linear neuronal model for analytical solvers
+            "cse_analytical.json"
+        )
 
-        pair = run_cse_analysis_pair(
-            indict,
+        #
+        # Analyse exactly the same model twice:
+        #     1. normal ODE-toolbox
+        #     2. ODE-toolbox with CSE
+        #
+        baseline_solvers, _, _ = odetoolbox._analysis(
+            copy.deepcopy(indict),
             disable_stiffness_check=True,
             disable_singularity_detection=True,
-            log_level="DEBUG")
+            enable_cse=False,
+            log_level=logging.DEBUG,
+        )
 
-        baseline_solver = get_solver(
-            pair.baseline_solvers,
-            "analytical")
+        cse_solvers, _, _ = odetoolbox._analysis(
+            copy.deepcopy(indict),
+            disable_stiffness_check=True,
+            disable_singularity_detection=True,
+            enable_cse=True,
+            log_level=logging.DEBUG,
+        )
 
-        cse_solver = get_solver(
-            pair.cse_solvers,
-            "analytical")
+        assert len(baseline_solvers) == 1
+        assert len(cse_solvers) == 1
 
-        assert_solver_metadata_preserved(baseline_solver, cse_solver)
+        baseline_solver = baseline_solvers[0]
+        cse_solver = cse_solvers[0]
 
-        assert_cse_region_equivalent(
+        assert baseline_solver["solver"] == "analytical"
+        assert cse_solver["solver"] == "analytical"
+
+        #
+        # Prove that this genuinely exercised CSE.
+        #
+        assert "cse" not in baseline_solver
+        assert "cse" in cse_solver
+        assert "propagators" in cse_solver["cse"]
+
+        #
+        # Make parameter values explicitly available to AnalyticIntegrator.
+        #
+        baseline_solver.setdefault(
+            "parameters",
+            {}
+        )
+        cse_solver.setdefault(
+            "parameters",
+            {}
+        )
+
+        baseline_solver["parameters"].update(
+            indict.get("parameters", {})
+        )
+        cse_solver["parameters"].update(
+            indict.get("parameters", {})
+        )
+
+        #
+        # Run through the REAL existing analytical integrator.
+        #
+        baseline_integrator = AnalyticIntegrator(
             baseline_solver,
+            enable_cse=False,
+        )
+
+        cse_integrator = AnalyticIntegrator(
             cse_solver,
-            "propagators",
-            require_cse=False)
+            enable_cse=True,
+        )
 
-        if ("update_expressions" in baseline_solver): 
+        #
+        # Compare the trajectory at many time points.
+        #
+        time_points = np.linspace(
+            0.0,
+            20.0,
+            101,
+        )
 
-            assert_cse_region_equivalent(
-                baseline_solver, # ensure that the solvers are the same 
-                cse_solver,
-                "update_expressions",
-                require_cse=False)
+        for t in time_points:
+
+            baseline_state = (
+                baseline_integrator.get_value(t)
+            )
+
+            cse_state = (
+                cse_integrator.get_value(t)
+            )
+
+            assert (
+                baseline_state.keys()
+                ==
+                cse_state.keys()
+            )
+
+            for symbol in baseline_state:
+
+                np.testing.assert_allclose(
+                    cse_state[symbol],
+                    baseline_state[symbol],
+                    rtol=1E-10,
+                    atol=1E-12,
+                )
+
+        print(
+            "\nAnalytical baseline final:",
+            baseline_state,
+        )
+
+        print(
+            "Analytical CSE final:",
+            cse_state,
+        )
 

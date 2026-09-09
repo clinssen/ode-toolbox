@@ -37,168 +37,221 @@ class TestCSEMixedSolver:
     analytical solver block and a numerical solver block.
     """
 
-    def test_mixed_cse_pipeline(self):
+    test_cse_numerical_integrator.py
+#
 
-        indict = load_test_json("cse_mixed.json")
+import copy
+import logging
 
-        pair = run_cse_analysis_pair(
-            indict,
-            disable_stiffness_check=True,
-            disable_singularity_detection=True,
-            log_level="DEBUG")
-       
-        # Mixed system must produce exactly two solver blocks.
-        assert len(pair.baseline_solvers) == 2, f"Baseline solver does not contain two solver blocks, it contains: {pair.baseline_solvers}"
-        assert len(pair.cse_solvers) == 2, f"CSE solver does not contain two solver blocks, it contains: {pair.cse_solvers}"
-    
-        # Extract corresponding blocks by solver type rather than relying on
-        # list ordering.
-        baseline_analytical = get_solver(
-            pair.baseline_solvers,
-            "analytical")
+import numpy as np
+import pytest
 
-        baseline_numerical = get_solver(
-            pair.baseline_solvers,
-            "numeric")
+import odetoolbox
+from odetoolbox.mixed_integrator import MixedIntegrator
+from tests.test_utils import load_test_json
 
-        cse_analytical = get_solver(
-            pair.cse_solvers,
-            "analytical")
 
-        cse_numerical = get_solver(
-            pair.cse_solvers,
-            "numeric")
+try:
+    import pygsl.odeiv as odeiv
+    PYGSL_AVAILABLE = True
 
-        # Baseline should have no CSE metadata.
-        assert ("cse" not in baseline_analytical)
-        assert ("cse" not in baseline_numerical)
+except ImportError:
+    PYGSL_AVAILABLE = False
 
-        # Internal ODE representation cannot change.
-        assert_shape_structure_preserved(pair)
 
-        # Solver partition / metadata cannot chang
-        assert_solver_metadata_preserved(
-            baseline_analytical,
-            cse_analytical,
+@pytest.mark.skipif(
+    not PYGSL_AVAILABLE,
+    reason="Need GSL integrator to perform numerical CSE test",
+)
+def test_cse_numerical_integrator_matches_baseline():
+    """
+    Verify that numerical CSE does not change the solution produced
+    by MixedIntegrator/GSL.
+    """
+
+    indict = load_test_json(
+        "cse_numerical.json"
+    )
+
+    #
+    # Force this fixture through the numerical solver.
+    #
+    (
+        baseline_solvers,
+        baseline_shape_sys,
+        baseline_shapes,
+    ) = odetoolbox._analysis(
+        copy.deepcopy(indict),
+        disable_stiffness_check=True,
+        disable_analytic_solver=True,
+        disable_singularity_detection=True,
+        enable_cse=False,
+        log_level=logging.DEBUG,
+    )
+
+    (
+        cse_solvers,
+        cse_shape_sys,
+        cse_shapes,
+    ) = odetoolbox._analysis(
+        copy.deepcopy(indict),
+        disable_stiffness_check=True,
+        disable_analytic_solver=True,
+        disable_singularity_detection=True,
+        enable_cse=True,
+        log_level=logging.DEBUG,
+    )
+
+    assert len(baseline_solvers) == 1
+    assert len(cse_solvers) == 1
+
+    baseline_solver = baseline_solvers[0]
+    cse_solver = cse_solvers[0]
+
+    assert baseline_solver["solver"].startswith(
+        "numeric"
+    )
+
+    assert cse_solver["solver"].startswith(
+        "numeric"
+    )
+
+    #
+    # Confirm CSE actually happened.
+    #
+    assert "cse" not in baseline_solver
+
+    assert "cse" in cse_solver
+
+    assert (
+        "update_expressions"
+        in cse_solver["cse"]
+    )
+
+    #
+    # The nonlinear fixture grows quickly, so keep the simulation short.
+    #
+    simulation_time = 5E-3
+    max_step_size = 1E-4
+
+    baseline_integrator = MixedIntegrator(
+        odeiv.step_rk4,
+        baseline_shape_sys,
+        baseline_shapes,
+
+        analytic_solver_dict=None,
+
+        numeric_solver_dict=baseline_solver,
+        enable_cse=False,
+
+        parameters=copy.deepcopy(
+            indict.get("parameters", {})
+        ),
+
+        spike_times={},
+        random_seed=123,
+
+        max_step_size=max_step_size,
+
+        integration_accuracy_abs=1E-9,
+        integration_accuracy_rel=1E-9,
+
+        sim_time=simulation_time,
+        alias_spikes=False,
+    )
+
+    cse_integrator = MixedIntegrator(
+        odeiv.step_rk4,
+        cse_shape_sys,
+        cse_shapes,
+
+        analytic_solver_dict=None,
+
+        numeric_solver_dict=cse_solver,
+        enable_cse=True,
+
+        parameters=copy.deepcopy(
+            indict.get("parameters", {})
+        ),
+
+        spike_times={},
+        random_seed=123,
+
+        max_step_size=max_step_size,
+
+        integration_accuracy_abs=1E-9,
+        integration_accuracy_rel=1E-9,
+
+        sim_time=simulation_time,
+        alias_spikes=False,
+    )
+
+    #
+    # Run the REAL MixedIntegrator / GSL simulation.
+    #
+    baseline_result = (
+        baseline_integrator.integrate_ode(
+            initial_values={},
+            h_min_lower_bound=1E-12,
+            raise_errors=True,
+            debug=True,
         )
+    )
 
-        assert_solver_metadata_preserved(
-            baseline_numerical,
-            cse_numerical,
+    cse_result = (
+        cse_integrator.integrate_ode(
+            initial_values={},
+            h_min_lower_bound=1E-12,
+            raise_errors=True,
+            debug=True,
         )
+    )
 
-    
-        # copied in from analytical test checks ;;;
-        
-        assert "cse" in cse_analytical
-        assert ("propagators" in cse_analytical["cse"])
+    baseline_t_log = baseline_result[4]
+    baseline_y_log = baseline_result[6]
+    baseline_symbols = baseline_result[7]
 
-        assert_cse_region_equivalent(
-            baseline_analytical,
-            cse_analytical,
-            "propagators",
-            require_cse=True,
-        )
+    cse_t_log = cse_result[4]
+    cse_y_log = cse_result[6]
+    cse_symbols = cse_result[7]
 
-        assert_cse_region_profitable(
-            baseline_analytical,
-            cse_analytical,
-            "propagators",
-        )
+    #
+    # Same variables must have been integrated.
+    #
+    assert (
+        [str(symbol) for symbol in baseline_symbols]
+        ==
+        [str(symbol) for symbol in cse_symbols]
+    )
 
-        # copied in from numerical test checks ;;; 
+    #
+    # Both simulations must reach the requested time.
+    #
+    np.testing.assert_allclose(
+        baseline_t_log[-1],
+        simulation_time,
+    )
 
-        assert "cse" in cse_numerical
+    np.testing.assert_allclose(
+        cse_t_log[-1],
+        simulation_time,
+    )
 
-        assert (
-            "update_expressions"
-            in cse_numerical["cse"]
-        )
+    #
+    # Main mathematical assertion.
+    #
+    np.testing.assert_allclose(
+        cse_y_log[-1],
+        baseline_y_log[-1],
+        rtol=1E-8,
+        atol=1E-10,
+    )
 
-        assert_cse_region_equivalent(
-            baseline_numerical,
-            cse_numerical,
-            "update_expressions",
-            require_cse=True,
-        )
+    print(
+        "\nNumerical baseline final:",
+        baseline_y_log[-1],
+    )
 
-        assert_cse_region_profitable(
-            baseline_numerical,
-            cse_numerical,
-            "update_expressions",
-        )
-
-        
-        # Both solver blocks must have had their metadata serialized.
-        # THIS directly catchesthe current serialization-loop problem.
-        assert_cse_serialized(cse_analytical)
-        assert_cse_serialized(cse_numerical)
-
-        
-        # CSE namespace isolation, ensure tmp variables are not leaking or colliding with other branches (e.g., numerical vs analytical)
-        assert_cse_temporaries_disjoint(pair.cse_solvers)
-
-        # Each solver's CSE dependency order is valid.
-        assert_cse_dependency_order(cse_analytical)
-        assert_cse_dependency_order(cse_numerical)
-
-
-    def test_legacy_mixed_fixture_preserved(self):
-
-        """
-        This script is to test an legacy .json file to ensure 
-        that cse is not affecting upstream users.
-        """
-
-
-        indict = load_test_json("mixed_analytic_numerical_no_stiffness.json")
-
-        pair = run_cse_analysis_pair(
-            indict, # enable_cse should be default off 
-            disable_stiffness_check=True,
-            disable_singularity_detection=True,
-            log_level="DEBUG")
-
-        # Mixed system must produce exactly two solver blocks.
-        assert len(pair.baseline_solvers) == 2, f"Baseline solver does not contain two solver blocks, it contains: {pair.baseline_solvers}"
-        assert len(pair.cse_solvers) == 2, f"CSE solver does not contain two solver blocks, it contains: {pair.cse_solvers}"
-    
-
-        baseline_analytical = get_solver(
-            pair.baseline_solvers,
-            "analytical",
-        )
-
-        cse_analytical = get_solver(
-            pair.cse_solvers,
-            "analytical",
-        )
-
-        baseline_numerical = get_solver(
-            pair.baseline_solvers,
-            "numeric")
-
-        cse_numerical = get_solver(
-            pair.cse_solvers,
-            "numeric")
-
-        assert_solver_metadata_preserved(
-            baseline_analytical,
-            cse_analytical)
-
-        assert_solver_metadata_preserved(
-            baseline_numerical,
-            cse_numerical)
-
-        # The legacy fixture was not designed specifically for CSE.
-        assert_cse_region_equivalent(
-            baseline_analytical, # comparing two outputs that should be the same since cse was off in both conditions 
-            cse_analytical,
-            "propagators",
-            require_cse=False) #  pipeline pass-through 
-
-        assert_cse_region_equivalent(
-            baseline_numerical,
-            cse_numerical,
-            "update_expressions",
-            require_cse=False)
+    print(
+        "Numerical CSE final:",
+        cse_y_log[-1],

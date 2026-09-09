@@ -102,30 +102,37 @@ def count_cse_operations(replacements, reduced_expressions):
 
     return (replacement_cost + reduced_cost) # total cost of expressions and temporary values before weight scaling
 
+
+
 def weighted_expression_cost(expr):
     """
     estimate expression cost using operation-specific weights, where adding expr has low weight etc. and sin(x) has high weight
 
-    this is a heuristic machine-aware cost, not a prediciton of exact CPU cycles or instruction counts.
-    """
+    this is a heuristic machine-aware cost, not a prediciton of exact CPU cycles or instruction counts. 
+    """  
 
-    if not isinstance(expr, sympy.Basic):
+    if not isinstance(expr, sympy.Basic): 
         raise TypeError(f"weighted expression costs expect a SymPy expression. Received : {type(expr).__name__}")
 
     if expr.is_Atom: # individual numbers/ symbols doesnt require any calculation
         return 0.0
 
     # Look up the cost of the current operation (defualt 1.0)
-    weight = OP_WEIGHTS.get(expr.func, 1.0)  # expr.func tells us if it's an Add, Mul, Pow, sin, exp, etc.
+    weight = OP_WEIGHTS.get(expr.func, 1.0)  # expr.func tells us if it's an Add, Mul, Pow, sin, exp, etc with an assigned weight 
 
     if expr.func in (sympy.Add, sympy.Mul): # Handle chaining for additions/multiplications (e.g., x + y + z has 2 operations)
-        own_cost = max(0, len(expr.args) - 1) * weight
+        
+        own_cost = max(0, len(expr.args) - 1) * weight # calculates how many binary ops occur when you add/multiply together
+    
     else:
-        own_cost = weight
+        own_cost = weight # if it's a singular operation assign weight 
 
     child_cost = sum(weighted_expression_cost(arg) for arg in expr.args) # calculate cost and every expression inside them
 
     return own_cost + child_cost
+
+
+
 
 
 def count_symbol_uses(symbol, remaining_replacements, reduced_expressions):
@@ -275,12 +282,9 @@ def filter_cse_replacements(
                 gross_benefit,
                 net_benefit,
                 expression)
-
         else:
 
-            # Do not emit this temporary.
-            # Inline its expression anywhere that later uses the symbol.
-            substitutions[symbol] = expression
+            substitutions[symbol] = expression # record the temporary even if rejected, as it might get used later in script 
 
             logger.debug(
                 "[CSE TEMP] symbol=%s "
@@ -304,30 +308,6 @@ def filter_cse_replacements(
     final_reduced = {name: expression.xreplace(substitutions) for name, expression in reduced_expressions.items()}
 
     return final_replacements, final_reduced
-
-def log_temporary_diagnostics(replacements,reduced_expressions,solver_name="unknown",region_name="unknown"):
-    logger = logging.getLogger(__name__)
-
-    for index, (symbol, expr) in enumerate(replacements):
-
-        remaining = replacements[index + 1:]
-        uses = count_symbol_uses(symbol,remaining,reduced_expressions)
-
-        expression_cost = weighted_expression_cost(expr)
-        gross_saved_cost = (expression_cost * max(0, uses - 1))
-
-        logger.debug(
-            "[CSE TEMP] solver=%s region=%s "
-            "symbol=%s cost=%.2f uses=%d "
-            "gross_reuse_saving=%.2f expr=%s",
-            solver_name,
-            region_name,
-            symbol,
-            expression_cost,
-            uses,
-            gross_saved_cost,
-            expr)
-
 
 def _contains_nonfinite_expression(expressions):
 

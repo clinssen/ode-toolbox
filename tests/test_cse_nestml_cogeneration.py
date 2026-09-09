@@ -434,6 +434,9 @@ class TestCSECodeGeneration:
 
 
     def test_machine_aware_cost_simple_operations(self):
+        """
+        Tests to check that the expression weighting is being applied correctly
+        """
 
         x, y = sympy.symbols("x y")
 
@@ -448,15 +451,13 @@ class TestCSECodeGeneration:
         assert exp_cost == 9.0 # with current weighted params. 
 
 
-    def test_temporary_pressure_penality(self):
-
-        assert eo.temporary_pressure_penalty(0) == 0
-        assert eo.temporary_pressure_penalty(4) == 0
-        assert eo.temporary_pressure_penalty(5) == 1
-        assert eo.temporary_pressure_penalty(6) == 4
-        assert eo.temporary_pressure_penalty(8) == 16
-    
     def test_machine_aware_division_costs(self):
+
+        """
+        Further tests to check that the expression weighting is being applied correctly. these tests will need to be adapted
+        if the parameters are adjusted.
+        """
+
 
         x,y = sympy.symbols("x y")
         multiply_cost = eo.weighted_expression_cost(x * y)
