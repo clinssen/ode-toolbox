@@ -50,208 +50,123 @@ import odetoolbox
 from odetoolbox.mixed_integrator import MixedIntegrator
 from tests.test_utils import load_test_json
 
-
 try:
     import pygsl.odeiv as odeiv
     PYGSL_AVAILABLE = True
-
 except ImportError:
     PYGSL_AVAILABLE = False
 
-
-@pytest.mark.skipif(
-    not PYGSL_AVAILABLE,
-    reason="Need GSL integrator to perform numerical CSE test",
-)
+@pytest.mark.skipif(not PYGSL_AVAILABLE, reason="Need GSL integrator to perform numerical CSE test")
 def test_cse_numerical_integrator_matches_baseline():
     """
     Verify that numerical CSE does not change the solution produced
     by MixedIntegrator/GSL.
     """
 
-    indict = load_test_json(
-        "cse_numerical.json"
-    )
+    indict = load_test_json("XXX.json")
 
-    #
-    # Force this fixture through the numerical solver.
-    #
-    (
-        baseline_solvers,
-        baseline_shape_sys,
-        baseline_shapes,
-    ) = odetoolbox._analysis(
+    # baseline _analysis run 
+    (baseline_solvers, baseline_shape_sys, baseline_shapes) = odetoolbox._analysis(
         copy.deepcopy(indict),
         disable_stiffness_check=True,
         disable_analytic_solver=True,
         disable_singularity_detection=True,
         enable_cse=False,
-        log_level=logging.DEBUG,
-    )
+        log_level=logging.DEBUG)
 
-    (
-        cse_solvers,
-        cse_shape_sys,
-        cse_shapes,
-    ) = odetoolbox._analysis(
+    # cse _analysis run 
+    (cse_solvers, cse_shape_sys, cse_shapes) = odetoolbox._analysis(
         copy.deepcopy(indict),
         disable_stiffness_check=True,
         disable_analytic_solver=True,
         disable_singularity_detection=True,
         enable_cse=True,
-        log_level=logging.DEBUG,
-    )
+        log_level=logging.DEBUG)
 
+    # assert that _analysis produced solvers 
     assert len(baseline_solvers) == 1
     assert len(cse_solvers) == 1
-
     baseline_solver = baseline_solvers[0]
     cse_solver = cse_solvers[0]
 
-    assert baseline_solver["solver"].startswith(
-        "numeric"
-    )
+    # assert that solvers correctly identified solver_type
+    assert baseline_solver["solver"].startswith("numeric")
+    assert cse_solver["solver"].startswith("numeric")
 
-    assert cse_solver["solver"].startswith(
-        "numeric"
-    )
-
-    #
-    # Confirm CSE actually happened.
-    #
+    # Confirm CSE happened
     assert "cse" not in baseline_solver
-
     assert "cse" in cse_solver
+    assert ("update_expressions" in cse_solver["cse"]) # numeric so only update expr 
 
-    assert (
-        "update_expressions"
-        in cse_solver["cse"]
-    )
-
-    #
     # The nonlinear fixture grows quickly, so keep the simulation short.
-    #
     simulation_time = 5E-3
     max_step_size = 1E-4
 
+    # mixed integrator baseline run 
     baseline_integrator = MixedIntegrator(
         odeiv.step_rk4,
         baseline_shape_sys,
         baseline_shapes,
-
         analytic_solver_dict=None,
-
         numeric_solver_dict=baseline_solver,
         enable_cse=False,
-
-        parameters=copy.deepcopy(
-            indict.get("parameters", {})
-        ),
-
+        parameters=copy.deepcopy(indict.get("parameters", {})), # ensure entire dict is the same for params for comparision
         spike_times={},
         random_seed=123,
-
         max_step_size=max_step_size,
-
         integration_accuracy_abs=1E-9,
         integration_accuracy_rel=1E-9,
-
         sim_time=simulation_time,
-        alias_spikes=False,
-    )
+        alias_spikes=False) # tracking of spikes, continuous, or snapping to timesteps? 
 
+    # mixed integrator cse run 
     cse_integrator = MixedIntegrator(
         odeiv.step_rk4,
         cse_shape_sys,
         cse_shapes,
-
         analytic_solver_dict=None,
-
         numeric_solver_dict=cse_solver,
         enable_cse=True,
-
-        parameters=copy.deepcopy(
-            indict.get("parameters", {})
-        ),
-
+        parameters=copy.deepcopy(indict.get("parameters", {})),
         spike_times={},
         random_seed=123,
-
         max_step_size=max_step_size,
-
         integration_accuracy_abs=1E-9,
         integration_accuracy_rel=1E-9,
-
         sim_time=simulation_time,
-        alias_spikes=False,
-    )
+        alias_spikes=False)
 
-    #
-    # Run the REAL MixedIntegrator / GSL simulation.
-    #
-    baseline_result = (
-        baseline_integrator.integrate_ode(
+    # Run the MixedIntegrator / GSL simulation.
+    baseline_result = (baseline_integrator.integrate_ode(
             initial_values={},
             h_min_lower_bound=1E-12,
             raise_errors=True,
-            debug=True,
-        )
-    )
+            debug=True))
 
-    cse_result = (
-        cse_integrator.integrate_ode(
+    cse_result = (cse_integrator.integrate_ode(
             initial_values={},
             h_min_lower_bound=1E-12,
             raise_errors=True,
-            debug=True,
-        )
-    )
+            debug=True))
 
-    baseline_t_log = baseline_result[4]
-    baseline_y_log = baseline_result[6]
-    baseline_symbols = baseline_result[7]
 
+    # extract logs from integrate ode
+    baseline_t_log = baseline_result[4] # Time steps logged by baseline
+    baseline_y_log = baseline_result[6] # State variable values (Y) logged by baseline
+    baseline_symbols = baseline_result[7] # Symbol mappings
     cse_t_log = cse_result[4]
     cse_y_log = cse_result[6]
     cse_symbols = cse_result[7]
 
-    #
-    # Same variables must have been integrated.
-    #
-    assert (
-        [str(symbol) for symbol in baseline_symbols]
-        ==
-        [str(symbol) for symbol in cse_symbols]
-    )
+    # Same variables to be integrated, ensures that cse has not broken the code 
+    assert ([str(symbol) for symbol in baseline_symbols] == [str(symbol) for symbol in cse_symbols])
 
-    #
-    # Both simulations must reach the requested time.
-    #
-    np.testing.assert_allclose(
-        baseline_t_log[-1],
-        simulation_time,
-    )
+    # execution check ensure that both simulations reached the requested time 
+    np.testing.assert_allclose(baseline_t_log[-1], simulation_time)
+    np.testing.assert_allclose(cse_t_log[-1], simulation_time)
 
-    np.testing.assert_allclose(
-        cse_t_log[-1],
-        simulation_time,
-    )
+    # use rtol and atol to ensure cse has not broken the mathematics of the ode 
+    np.testing.assert_allclose(cse_y_log[-1],baseline_y_log[-1],rtol=1E-8,atol=1E-10)
 
-    #
-    # Main mathematical assertion.
-    #
-    np.testing.assert_allclose(
-        cse_y_log[-1],
-        baseline_y_log[-1],
-        rtol=1E-8,
-        atol=1E-10,
-    )
-
-    print(
-        "\nNumerical baseline final:",
-        baseline_y_log[-1],
-    )
-
-    print(
-        "Numerical CSE final:",
-        cse_y_log[-1],
+    print("\nNumerical baseline final:",baseline_y_log[-1])
+    print("Numerical CSE final:",cse_y_log[-1])

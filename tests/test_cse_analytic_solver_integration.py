@@ -52,120 +52,63 @@ class TestCSENumericalSolver:
         by ODE-toolbox's AnalyticIntegrator.
         """
 
-        indict = load_test_json(
-            "cse_analytical.json"
-        )
-
-        #
-        # Analyse exactly the same model twice:
-        #     1. normal ODE-toolbox
-        #     2. ODE-toolbox with CSE
-        #
+        indict = load_test_json("XXX.json")
+        
+        # run baseline _analysis (no cse applied)
         baseline_solvers, _, _ = odetoolbox._analysis(
             copy.deepcopy(indict),
             disable_stiffness_check=True,
             disable_singularity_detection=True,
             enable_cse=False,
-            log_level=logging.DEBUG,
-        )
+            log_level=logging.DEBUG)
 
+        # run baseline _analysis (no cse applied)
         cse_solvers, _, _ = odetoolbox._analysis(
             copy.deepcopy(indict),
             disable_stiffness_check=True,
             disable_singularity_detection=True,
             enable_cse=True,
-            log_level=logging.DEBUG,
-        )
+            log_level=logging.DEBUG)
 
+        # verify _analysis produced solvers
         assert len(baseline_solvers) == 1
         assert len(cse_solvers) == 1
-
         baseline_solver = baseline_solvers[0]
         cse_solver = cse_solvers[0]
 
+        # verify the solver_type was correctly identified
         assert baseline_solver["solver"] == "analytical"
         assert cse_solver["solver"] == "analytical"
 
-        #
-        # Prove that this genuinely exercised CSE.
-        #
+        # Prove that cse occured 
         assert "cse" not in baseline_solver
         assert "cse" in cse_solver
         assert "propagators" in cse_solver["cse"]
 
-        #
         # Make parameter values explicitly available to AnalyticIntegrator.
-        #
-        baseline_solver.setdefault(
-            "parameters",
-            {}
-        )
-        cse_solver.setdefault(
-            "parameters",
-            {}
-        )
+        baseline_solver.setdefault("parameters",{})
+        cse_solver.setdefault("parameters",{})
 
-        baseline_solver["parameters"].update(
-            indict.get("parameters", {})
-        )
-        cse_solver["parameters"].update(
-            indict.get("parameters", {})
-        )
+        baseline_solver["parameters"].update(indict.get("parameters", {}))
+        cse_solver["parameters"].update(indict.get("parameters", {}))
 
-        #
-        # Run through the REAL existing analytical integrator.
-        #
-        baseline_integrator = AnalyticIntegrator(
-            baseline_solver,
-            enable_cse=False,
-        )
+        # Run through the existing analytical integrator pipeline
+        baseline_integrator = AnalyticIntegrator(baseline_solver, enable_cse=False)
+        cse_integrator = AnalyticIntegrator(cse_solver, enable_cse=True)
 
-        cse_integrator = AnalyticIntegrator(
-            cse_solver,
-            enable_cse=True,
-        )
-
-        #
-        # Compare the trajectory at many time points.
-        #
-        time_points = np.linspace(
-            0.0,
-            20.0,
-            101,
-        )
+        # generate 101 timepoints between 0-20
+        time_points = np.linspace(0.0, 20.0, 101)
 
         for t in time_points:
 
-            baseline_state = (
-                baseline_integrator.get_value(t)
-            )
+            # for time t, check that both states have outputted the exact variables/symbols 
+            baseline_state = (baseline_integrator.get_value(t))
+            cse_state = (cse_integrator.get_value(t))
+            assert (baseline_state.keys() == cse_state.keys())
+ 
+            for symbol in baseline_state:  # iterate through every single symbol at every individual time point to compare their values.
+                np.testing.assert_allclose(cse_state[symbol],baseline_state[symbol],rtol=1E-10,atol=1E-12)
 
-            cse_state = (
-                cse_integrator.get_value(t)
-            )
-
-            assert (
-                baseline_state.keys()
-                ==
-                cse_state.keys()
-            )
-
-            for symbol in baseline_state:
-
-                np.testing.assert_allclose(
-                    cse_state[symbol],
-                    baseline_state[symbol],
-                    rtol=1E-10,
-                    atol=1E-12,
-                )
-
-        print(
-            "\nAnalytical baseline final:",
-            baseline_state,
-        )
-
-        print(
-            "Analytical CSE final:",
-            cse_state,
-        )
+        print("Analytical baseline final:",baseline_state) # print final vectors evaluated at t=20.0 
+        print("Analytical CSE final:",cse_state) 
 
