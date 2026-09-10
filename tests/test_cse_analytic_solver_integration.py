@@ -46,13 +46,13 @@ class TestCSENumericalSolver:
     Isolated ODE-toolbox validation of CSE applied to a numerical solver.
     """
 
-    def test_cse_analytic_integrator_matches_baseline():
+    def test_cse_analytic_integrator_matches_baseline(self):
         """
         Verify that analytical CSE does not change the trajectory produced
         by ODE-toolbox's AnalyticIntegrator.
         """
 
-        indict = load_test_json("XXX.json")
+        indict = load_test_json("cse_analytical.json")
         
         # run baseline _analysis (no cse applied)
         baseline_solvers, _, _ = odetoolbox._analysis(

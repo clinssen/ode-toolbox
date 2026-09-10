@@ -20,10 +20,9 @@
 #
 
 """
-Expression optimisation helpers used by the ODE-toolbox analysis pipeline.
+Expression optimisation helper functions used by the ODE-toolbox analysis pipeline.
 
-This module contains only runtime common subexpression elimination (CSE) functionality. Test-specific
-reconstruction and validation helpers live in tests/cse_test_utils.py
+This module contains runtime common subexpression elimination (CSE) functionality and test specific validations. 
 """
 
 import logging
@@ -103,11 +102,9 @@ def count_cse_operations(replacements, reduced_expressions):
     return (replacement_cost + reduced_cost) # total cost of expressions and temporary values before weight scaling
 
 
-
 def weighted_expression_cost(expr):
     """
     estimate expression cost using operation-specific weights, where adding expr has low weight etc. and sin(x) has high weight
-
     this is a heuristic machine-aware cost, not a prediciton of exact CPU cycles or instruction counts. 
     """  
 
@@ -133,8 +130,6 @@ def weighted_expression_cost(expr):
 
 
 
-
-
 def count_symbol_uses(symbol, remaining_replacements, reduced_expressions):
     """
     count how many times a cse temporary symbol is referred by later replacements and later final reduced expressions
@@ -149,11 +144,14 @@ def count_symbol_uses(symbol, remaining_replacements, reduced_expressions):
 
     return uses
 
+
 def estimate_total_cost(expressions):
     """
     Return weight estimate machine cost of an iterable of expressions
     """
     return sum(weighted_expression_cost(expr) for expr in expressions)
+
+
 
 def _run_profitable_cse(expressions,symbol_prefix,solver_name="unknown",region_name="unknown"):
     """
@@ -192,11 +190,8 @@ def _run_profitable_cse(expressions,symbol_prefix,solver_name="unknown",region_n
             original_count)
         return [], expressions
 
-    before_cost = estimate_total_cost(
-        expressions.values())
-
-    after_cost = (
-        estimate_total_cost(expr for _, expr in replacements) + estimate_total_cost(reduced.values()) + len(replacements) * TEMPORARY_OVERHEAD)
+    before_cost = estimate_total_cost(expressions.values())
+    after_cost = (estimate_total_cost(expr for _, expr in replacements) + estimate_total_cost(reduced.values()) + len(replacements) * TEMPORARY_OVERHEAD)
 
     if after_cost >= before_cost:
 
@@ -526,3 +521,113 @@ def _find_non_json_serializable(obj, path="root"):
     # Catch-all for non-serializable objects (like SymPy Symbols)
     # Corrected to a uniform list containing a single 3-element tuple
     return [(path, type(obj).__name__, repr(obj))]
+
+
+
+
+#
+#
+# cse optimisation helper functions for validation during cse_testing 
+#
+#
+
+
+
+def deserialize_cse_replacements(replacements):
+    
+    from .shapes import Shape
+    from .sympy_helpers import _sympy_parse_real 
+
+    """
+    deserialize ordered cse replacement metadata int Sympy expressions
+    """
+
+    if not replacements:
+        return [] 
+
+    if not isinstance(replacements, dict):
+        raise TypeError("expected cse replacements to be dict")
+    
+    # define tmp symbols as smypy obj
+    temporary_symbols = {name: sympy.Symbol(name, real=True) for name in replacements}
+    
+    result = []
+
+    for name, expression in replacements.items():
+
+        parsed_expr = _sympy_parse_real(str(expression), global_dict=Shape._sympy_globals, local_dict=temporary_symbols) # ensures 'beta' string isnt being treated like a var 
+
+        result.append((temporary_symbols[name], parsed_expr))
+    
+    return result 
+    
+
+def expand_cse_expressions(reduced_expressions, replacements):
+
+    """
+    expand one cse-reduced expression back to a normal sympy expression. 
+    """
+
+    from .shapes import Shape 
+    from .sympy_helpers import _sympy_parse_real
+
+    replacements = deserialize_cse_replacements(replacements) # convert serialized replacement into ordered sympy
+
+     # define tmp symbols as smypy obj
+    temporary_symbols = {str(symbol): symbol for symbol, _ in replacements}
+
+    if isinstance(reduced_expressions, sympy.Basic): # true for constants and single variables 
+            expression = reduced_expressions
+    
+    else: 
+        # Custom parse internal function to make sure that all returned symbols have domain Real
+        expression = _sympy_parse_real(str(reduced_expressions), global_dict=Shape._sympy_globals, local_dict=temporary_symbols) # ensures 'beta' string isnt being treated like a var 
+
+    #
+    # Replacements are in dependency ordered. work backwards to inline dependent temp 
+    #
+    for temporary, replacement in reversed(replacements):
+        
+        expression = expression.xreplace({temporary:replacement})
+
+    return expression 
+
+
+def expand_cse_solver(solver):
+
+    """
+    convert an ode-toolbox solver containing serialised cse metadata into the oridinary expression solver. Not modifying the solver itself.
+    """
+
+    import copy
+
+    result = copy.deepcopy(solver)
+    cse_metadata = result.get("cse", {}) # isolate cse tmp translations 
+
+    for region_name in ("propagators", "update_expressions"): 
+        if region_name not in result: 
+            continue
+        
+        replacements = cse_metadata.get(region_name) # pull out keys inside cse
+
+        if not replacements:
+            continue
+        
+        # swaps out expressions, replacement tmp for full, raw maths ops 
+        result[region_name] = {expression_name: expand_cse_expressions(expression, replacements) for expression_name, expression in result[region_name].items()}
+
+        #
+        # conditional analytical sovler branches can carry cse also
+        #
+
+    if "conditions" in result:
+            
+        # recursion calls itself, inside each block to solver those blocks inside the blocks ! 
+        result["conditions"] = {condition: expand_cse_solver(conditional_solver) for condition, conditional_solver in result["conditions"].items()}
+
+    #
+    # drop cse out of meta data and return result 
+    #
+    result.pop("cse", None) 
+
+    return result
