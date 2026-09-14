@@ -584,31 +584,29 @@ def expand_cse_expressions(reduced_expressions, replacements):
         expression = _sympy_parse_real(str(reduced_expressions), global_dict=Shape._sympy_globals, local_dict=temporary_symbols) # ensures 'beta' string isnt being treated like a var 
 
     #
-    # Replacements are in dependency ordered. work backwards to inline dependent temp 
+    # Replacements are in dependency ordered.
     #
     for temporary, replacement in reversed(replacements):
         
-        expression = expression.xreplace({temporary:replacement})
+        expression = expression.xreplace({temporary:replacement})  # substition for the past term 
 
-    return expression 
+    return expression   #  return raw expression 
 
 
 def expand_cse_solver(solver):
-
     """
     convert an ode-toolbox solver containing serialised cse metadata into the oridinary expression solver. Not modifying the solver itself.
     """
 
     import copy
-
-    result = copy.deepcopy(solver)
-    cse_metadata = result.get("cse", {}) # isolate cse tmp translations 
+    result = copy.deepcopy(solver)  # make a scratch deep copy of the solver
+    cse_metadata = result.get("cse", {}) # isolate cse tmp translations high level cdict
 
     for region_name in ("propagators", "update_expressions"): 
         if region_name not in result: 
             continue
         
-        replacements = cse_metadata.get(region_name) # pull out keys inside cse
+        replacements = cse_metadata.get(region_name) # pull out keys inside cse dict 
 
         if not replacements:
             continue

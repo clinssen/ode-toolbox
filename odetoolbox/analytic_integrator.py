@@ -31,7 +31,7 @@ from odetoolbox.sympy_helpers import SymmetricEq, _sympy_parse_real
 
 from .shapes import Shape
 from .integrator import Integrator
-from .expression_optimisation import expand_cse_solver, expand_cse_expressions 
+from .expression_optimisation import expand_cse_solver
 
 
 
@@ -50,17 +50,13 @@ class AnalyticIntegrator(Integrator):
         """
 
         super(AnalyticIntegrator, self).__init__()
-
         self.enable_cse = enable_cse
-    
 
-        # cse enabled, expand cse representations for analytic integrator
-        if self.enable_cse: 
-            self.solver_dict = expand_cse_solver(solver_dict)
-
-        # cse disabled, solver is pased to analytical integrator 
-        else:
+        if self.enable_cse:   # if cse is enabled 
+            self.solver_dict = expand_cse_solver(solver_dict)  # expand cse representations for analytic integrator
+        else: # if cse disabled, solver is pased to analytical integrator 
             self.solver_dict = solver_dict
+
 
         self.all_variable_symbols = self.solver_dict["state_variables"]
         self.all_variable_symbols = [sympy.Symbol(s, real=True) for s in self.all_variable_symbols]
@@ -70,7 +66,6 @@ class AnalyticIntegrator(Integrator):
         self.enable_caching = enable_caching
         self.enable_cache_update_ = True
         self.t = 0.
-        self.enable_cse = enable_cse
 
         #
         #   define the necessary numerical state variables
