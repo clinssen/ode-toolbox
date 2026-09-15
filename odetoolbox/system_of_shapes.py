@@ -383,6 +383,7 @@ class SystemOfShapes:
 
         # Compute a particular solution for individual coupled inhomogeneous blocks
         particular_solutions = {}
+        constant_drift_rows = set() # initialise the constant drift dictionary  XXX not tested. 
 
         for component in set(component_labels): # for each cluster with a nonzero inhomogenous part 
 
@@ -394,8 +395,9 @@ class SystemOfShapes:
             if all(_is_zero(b_block[i, 0]) for i in range(len(indices))):
                 continue 
 
-            # Preserve the existing treatment of x' = b (old isolated row apporach)
+            # Isolated equation of the form, checks for steady state 
             if (len(indices) == 1 and _is_zero(A_block[0, 0])):
+                constant_drift_rows.add(indices[0]) # if matrix is non-invertible, append to constant drift dict 
                 continue
 
             try: # extracts the corresponding sub-matrix/sub-vector and solves the whole block via matrix inversion
@@ -435,6 +437,9 @@ class SystemOfShapes:
 
             if row in particular_solutions:
                 update_expr_terms.append("(" + str(particular_solutions[row])+ ")") # add back this row's own steady-state offset
+
+            elif row in constant_drift_rows: # handle non-invertible matrices by implementing linear drift term XXX not tested. 
+                update_expr_terms.append(Config().output_timestep_symbol + " * (" + str(self.b_[row]) + ")")
 
             # parses solution from plain py into sympy 
             update_expr[str(self.x_[row])] = " + ".join(update_expr_terms)

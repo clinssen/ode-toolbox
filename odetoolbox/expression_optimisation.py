@@ -36,10 +36,10 @@ OP_WEIGHTS = { # define individual weights of expressions
         sympy.log: 8.0,
         sympy.sin: 8.0,
         sympy.cos: 8.0,
-    } # can be adjusted iteratively
+    } 
 
-TEMPORARY_OVERHEAD = 1.0
-MIN_TEMPORARY_NET_BENEFIT = 3.0 # optimal value after sweeps
+TEMPORARY_OVERHEAD = 1.0 # cost of creating of a tmp variable 
+MIN_TEMPORARY_NET_BENEFIT = 3.0 # cost of optimal expr must be greater than to be accepted
 
 def common_subexpression_elimination(expressions, symbol_prefix="__ode_cse_tmp__"):
     """
@@ -77,30 +77,6 @@ def common_subexpression_elimination(expressions, symbol_prefix="__ode_cse_tmp__
 
     # replacement is returned as tuples where each tupe contains the temp var_name with the maths block
     return replacements, reduced_expressions
-
-
-def count_operations(expressions):
-    """
-    Count the total symbolic operations in an iterable of SymPy expressions.
-    """
-
-    #counting number of mathematical operations from the original equation
-    return sum(int(sympy.count_ops(expression)) for expression in expressions)
-
-
-def count_cse_operations(replacements, reduced_expressions):
-    """
-    Count operations required after CSE. helper includes calculating the extracted temporary expressions & reduced output expressions
-    """
-
-    # Extract operational cost for main simplified expressions
-    reduced_cost = sum(int(sympy.count_ops(expr)) for expr in reduced_expressions.values())
-
-    # count operations inside the temporary placeholder variables
-    replacement_cost = sum(int(sympy.count_ops(expr)) for _, expr in replacements)
-
-    return (replacement_cost + reduced_cost) # total cost of expressions and temporary values before weight scaling
-
 
 def weighted_expression_cost(expr):
     """
@@ -151,8 +127,6 @@ def estimate_total_cost(expressions):
     """
     return sum(weighted_expression_cost(expr) for expr in expressions)
 
-
-
 def _run_profitable_cse(expressions,symbol_prefix,solver_name="unknown",region_name="unknown"):
     """
     Run SymPy CSE, remove low-benefit candidate temporaries,
@@ -165,71 +139,49 @@ def _run_profitable_cse(expressions,symbol_prefix,solver_name="unknown",region_n
     if not expressions:
         return [], expressions
 
-    replacements, reduced = common_subexpression_elimination(
-        expressions,
-        symbol_prefix=symbol_prefix)
+     # run cse expression 
+    replacements, reduced = common_subexpression_elimination(expressions, symbol_prefix=symbol_prefix)
 
     if not replacements:
         logger.debug(
             "[CSE] solver=%s region=%s: "
-            "no common subexpressions found",
-            solver_name,
-            region_name,)
+            "no common subexpressions found", solver_name, region_name,)
         return [], expressions
 
-    original_count = len(replacements)
-
-    replacements, reduced = filter_cse_replacements(replacements,reduced)
+    original_count = len(replacements)  # original count of cse 
+    replacements, reduced = filter_cse_replacements(replacements,reduced) # prune out unprofitable cse 
 
     if not replacements:
         logger.debug(
             "[CSE] solver=%s region=%s: "
-            "all %d candidate temporaries were rejected",
-            solver_name,
-            region_name,
-            original_count)
+            "all %d candidate temporaries were rejected", solver_name, region_name, original_count)
         return [], expressions
 
-    before_cost = estimate_total_cost(expressions.values())
+
+    before_cost = estimate_total_cost(expressions.values())  # calculate the cost of expressions before/after cse applied 
     after_cost = (estimate_total_cost(expr for _, expr in replacements) + estimate_total_cost(reduced.values()) + len(replacements) * TEMPORARY_OVERHEAD)
 
     if after_cost >= before_cost:
 
-        logger.debug(
+        logger.debug(  # inline rejection 
             "[CSE] solver=%s region=%s: "
             "final filtered CSE rejected "
-            "(before=%.2f after=%.2f)",
-            solver_name,
-            region_name,
-            before_cost,
-            after_cost,
-        )
+            "(before=%.2f after=%.2f)", solver_name, region_name, before_cost, after_cost)
 
         return [], expressions
 
-    logger.debug(
+    logger.debug(  # accepted with cse solver statistics 
         "[CSE] solver=%s region=%s: ACCEPTED "
         "(candidates=%d kept=%d removed=%d "
         "before=%.2f after=%.2f reduction=%.2f%%)",
-        solver_name,
-        region_name,
-        original_count,
-        len(replacements),
-        original_count - len(replacements),
-        before_cost,
-        after_cost,
+        solver_name, region_name, original_count, len(replacements),
+        original_count - len(replacements), before_cost, after_cost,
         ((before_cost - after_cost) / before_cost * 100.0))
 
     return replacements, reduced
 
-
-def filter_cse_replacements(
-    replacements,
-    reduced_expressions,
-    min_net_benefit=MIN_TEMPORARY_NET_BENEFIT):
+def filter_cse_replacements(replacements, reduced_expressions, min_net_benefit=MIN_TEMPORARY_NET_BENEFIT):
     """
-    Remove low-benefit CSE temporaries.
-
     Rejected temporaries are inlined into later replacements and into
     the final reduced expressions so that dependency ordering and
     mathematical equivalence are preserved.
@@ -246,15 +198,13 @@ def filter_cse_replacements(
 
         # Remaining expressions must also be viewed after existing
         # rejected substitutions have been inlined.
-        remaining_replacements = [
-            (later_symbol, later_expr.xreplace(substitutions))
+        remaining_replacements = [(later_symbol, later_expr.xreplace(substitutions))
             for later_symbol, later_expr in replacements[index + 1:]] # ensures we dont reject some tmp variables that are used later in expressions
 
         current_reduced = {
             name: expr.xreplace(substitutions)
             for name, expr in reduced_expressions.items()}
 
-        # for each temporary..
         uses = count_symbol_uses(symbol,remaining_replacements,current_reduced) # count number of times a specific variable is used in the rest of the script
         expression_cost = weighted_expression_cost(expression) # weighted expression cost
         gross_benefit = (expression_cost * max(0, uses - 1)) # calculate gross beneft of using tmp with expression cost and uses
@@ -264,36 +214,14 @@ def filter_cse_replacements(
 
             kept_replacements.append((symbol, expression))
 
-            logger.debug(
-                "[CSE TEMP] symbol=%s "
-                "cost=%.2f uses=%d "
-                "gross_benefit=%.2f "
-                "net_benefit=%.2f "
-                "decision=KEEP "
-                "expr=%s",
-                symbol,
-                expression_cost,
-                uses,
-                gross_benefit,
-                net_benefit,
-                expression)
+            logger.debug("[CSE TEMP] symbol=%s cost=%.2f uses=%d gross_benefit=%.2f net_benefit=%.2f decision=KEEP expr=%s",
+                symbol,expression_cost,uses,gross_benefit,net_benefit,expression)
         else:
 
             substitutions[symbol] = expression # record the temporary even if rejected, as it might get used later in script 
 
-            logger.debug(
-                "[CSE TEMP] symbol=%s "
-                "cost=%.2f uses=%d "
-                "gross_benefit=%.2f "
-                "net_benefit=%.2f "
-                "decision=INLINE "
-                "expr=%s",
-                symbol,
-                expression_cost,
-                uses,
-                gross_benefit,
-                net_benefit,
-                expression)
+            logger.debug("[CSE TEMP] symbol=%s cost=%.2f uses=%d gross_benefit=%.2f net_benefit=%.2f decision=INLINE expr=%s",
+                symbol, expression_cost, uses, gross_benefit, net_benefit, expression)
 
     # Inline every rejected temporary variable into surviving replacement expressions so we have template of accepted/rejections
     final_replacements = [(symbol,expression.xreplace(substitutions))
@@ -301,19 +229,15 @@ def filter_cse_replacements(
 
     # final output for mathematical expressions
     final_reduced = {name: expression.xreplace(substitutions) for name, expression in reduced_expressions.items()}
-
     return final_replacements, final_reduced
 
+
 def _contains_nonfinite_expression(expressions):
-
     """
-    This is check before CSE occurs to check for symbolic infinities. This looks at an equation and determiens
-    that it will always evaluate to infinity or divide by 0, regardless of the numerical values you pass.
-
-    This is secondary sanity check, as all symbolic infinities should theortically be filtered out
+    Check for symbolic infinities, this looks at an equation and determines that it will always evaluate to infinity or divide by 0,
+    regardless of the numerical values you pass. This is secondary sanity check, as all symbolic infinities should theortically be filtered out
     by the singularity conditions.
     """
-
     invalid_values = (
     sympy.zoo, # complex infinity
     sympy.oo, # infinity
@@ -335,7 +259,6 @@ def _contains_internal_control_flow(expressions):
     """
     If a sympy.Piecewise object is hidden inside an expression, it introduces hidden branching logic. If CSE blindly pulls an equation out from inside a
     Piecewise condition and places it at the global scope (when it has a local conditional specifications), it forces the CPU to compute it all the time.
-
     This ruins your conditional optimization and can lead to runtime NaN crashes or division-by-zero errors. This acts a secondary safety check before cse.
     """
 
