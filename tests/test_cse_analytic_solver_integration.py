@@ -52,13 +52,14 @@ class TestCSENumericalSolver:
         """
 
         indict = load_test_json("cse_analytical.json")
-        
+
         # run baseline _analysis (no cse applied)
         baseline_solvers, _, _ = odetoolbox._analysis(
             copy.deepcopy(indict),
             disable_stiffness_check=True,
             disable_singularity_detection=True,
-            enable_cse=False,    # specified as false (default is already false)
+            enable_cse=False,
+            # specified as false (default is already false)
             log_level=logging.DEBUG)
 
         # run baseline _analysis (no cse applied)
@@ -66,7 +67,7 @@ class TestCSENumericalSolver:
             copy.deepcopy(indict),
             disable_stiffness_check=True,
             disable_singularity_detection=True,
-            enable_cse=True,  # specified as true for cse 
+            enable_cse=True,  # specified as true for cse
             log_level=logging.DEBUG)
 
         # verify _analysis produced solvers
@@ -75,22 +76,24 @@ class TestCSENumericalSolver:
         baseline_solver = baseline_solvers[0]
         cse_solver = cse_solvers[0]
 
-        # verify the solver_type was correctly identified as analytical 
+        # verify the solver_type was correctly identified as analytical
         assert baseline_solver["solver"] == "analytical"
         assert cse_solver["solver"] == "analytical"
 
-        # Prove that cse occured 
+        # Prove that cse occured
         assert "cse" not in baseline_solver
         assert "cse" in cse_solver
         assert "propagators" in cse_solver["cse"]
 
         # Make parameter values explicitly available to AnalyticIntegrator.
-        baseline_solver.setdefault("parameters",{})
-        cse_solver.setdefault("parameters",{})
-        baseline_solver["parameters"].update(indict.get("parameters", {}))  #  pass parameters into the baseline solvers as they contain expr
+        baseline_solver.setdefault("parameters", {})
+        cse_solver.setdefault("parameters", {})
+        # pass parameters into the baseline solvers as they contain expr
+        baseline_solver["parameters"].update(indict.get("parameters", {}))
         cse_solver["parameters"].update(indict.get("parameters", {}))
 
-        # Run through the existing analytical integrator pipeline passing baseline and cse solvers
+        # Run through the existing analytical integrator pipeline passing
+        # baseline and cse solvers
         baseline_integrator = AnalyticIntegrator(baseline_solver)
         cse_integrator = AnalyticIntegrator(cse_solver)
 
@@ -99,15 +102,23 @@ class TestCSENumericalSolver:
 
         for t in time_points:
 
-            # for time t, check that both states have outputted the exact variables/symbols from the propagator  
+            # for time t, check that both states have outputted the exact
+            # variables/symbols from the propagator
             baseline_state = (baseline_integrator.get_value(t))
             cse_state = (cse_integrator.get_value(t))
             assert (baseline_state.keys() == cse_state.keys())
- 
-            for symbol in baseline_state:  # iterate through every single symbol at every individual time point to compare their values.
-                np.testing.assert_allclose(cse_state[symbol],baseline_state[symbol],rtol=1E-10,atol=1E-12)
-                # asset a higher tolerance to the analytical algebraic substituion with no approximation 
 
-        print("Analytical baseline final:",baseline_state) # print final vectors evaluated at the last time point 
-        print("Analytical CSE final:",cse_state) 
+            # iterate through every single symbol at every individual time
+            # point to compare their values.
+            for symbol in baseline_state:
+                np.testing.assert_allclose(
+                    cse_state[symbol],
+                    baseline_state[symbol],
+                    rtol=1E-10,
+                    atol=1E-12)
+                # asset a higher tolerance to the analytical algebraic
+                # substituion with no approximation
 
+        # print final vectors evaluated at the last time point
+        print("Analytical baseline final:", baseline_state)
+        print("Analytical CSE final:", cse_state)

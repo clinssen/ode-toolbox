@@ -600,6 +600,41 @@ Working with large expressions
 In several places during processing, a SymPy expression simplification (\ :python:`simplify()`\ ) needs to be performed to ensure correctness. For very large expressions, this can result in long wait times, while it is most often found that the resulting system of equations has no analytical solution anyway. To address these performance issues with SymPy, we introduce the :python:`expression_simplification_threshold` constant, which causes expressions whose string representation is longer than this number of characters to be skipped when simplifying expressions. The default value is 1000.
 
 
+Common Subexpression Elimination 
+------------------------------
+
+XXX
+
+
+ For example, if the condition :math:`d=-p` will cause a singularity in the update expression for the state variable :python:`z`, two separate solvers are returned, one for the condition :math:`d=-p`, and another for the default ("otherwise") condition:
+
+  .. code:: python
+
+     {
+         "conditions": {
+             "(d == -p)": {
+                 "propagators": {
+                     "__P__z__z": "1"
+                 },
+                 "update_expressions": {
+                     "z": "__P__z__z*z + 1.5*__h*p/tau_z"
+                 }
+             },
+             "default": {
+                 "propagators": {
+                     "__P__z__z": "exp(-__h*(d + p)/tau_z)"
+                 },
+                 "update_expressions": {
+                     "z": "(__P__z__z*(0.5*d - p + z*(d + p)) - 0.5*d + p)/(d + p)"
+                 }
+             }
+         }
+     }
+
+
+
+
+
 Examples
 --------
 

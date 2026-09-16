@@ -20,19 +20,28 @@
 from tests.test_utils import load_test_json
 from .context import odetoolbox
 
-def test_coupled_inhomogeneous_system_is_analytical():
 
+def test_coupled_inhomogeneous_system_is_analytical():
     """
     This test is created after the PR #107, in which we removed some conservative numerical checks, leading to amat being classified as mixed-solver.
     """
 
     model = load_test_json("amat.json")
-    result = odetoolbox.analysis(model, disable_stiffness_check=False, enable_cse=True)
-    assert len(result) == 1  
+    result = odetoolbox.analysis(
+        model,
+        disable_stiffness_check=False,
+        enable_cse=True)
+    assert len(result) == 1
     solver = result[0]
-    assert solver["solver"] == "analytical"      # check solver is analytical 
-    assert solver["solver"] != "numerical"     # ensure there are no numerical solvers present
+    assert solver["solver"] == "analytical"      # check solver is analytical
+    # ensure there are no numerical solvers present
+    assert solver["solver"] != "numerical"
 
-    expected_variables = {"V_m", "V_th_alpha_1", "V_th_alpha_2", "V_th_v", "V_th_v_aux", "refr_t"}     # expected state variables from amat 
+    expected_variables = {
+        "V_m",
+        "V_th_alpha_1",
+        "V_th_alpha_2",
+        "V_th_v",
+        "V_th_v_aux",
+        "refr_t"}     # expected state variables from amat
     assert set(solver["state_variables"]) == expected_variables
-    

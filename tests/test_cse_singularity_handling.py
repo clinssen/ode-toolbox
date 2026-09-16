@@ -32,18 +32,16 @@ except ImportError:
     PYGSL_AVAILABLE = False
 
 
-
-
 """
 
-ok what would this singularity look like? 
+ok what would this singularity look like?
 hmm
 
-for the singulartiy conditional json file  ? we would have conditions that if we fit we would lead to the singularity collapse? 
+for the singulartiy conditional json file  ? we would have conditions that if we fit we would lead to the singularity collapse?
 first off dont turn off mitigation\
 
-then we can maybe apply these variables knowing the singularity and enforce this? and see how the system responds, with cse? 
-can we make a situation in which a cse temporary leads to a singularity problem? 
+then we can maybe apply these variables knowing the singularity and enforce this? and see how the system responds, with cse?
+can we make a situation in which a cse temporary leads to a singularity problem?
 """
 
 
@@ -53,66 +51,83 @@ class TestCSESingularityHandling:
     analytical solver block and a numerical solver block.
     """
 
-    @pytest.mark.skipif(not PYGSL_AVAILABLE, reason="Need GSL integrator to perform numerical CSE test")
+    @pytest.mark.skipif(not PYGSL_AVAILABLE,
+                        reason="Need GSL integrator to perform numerical CSE test")
     def test_cse_singularity_handling(self):
         """
         Verify that a conditional cse json vs a baseline conditional handling does not change the solution produced
         """
 
         # load in json that will produce a conditional tau_syn =! tau_m
-        indict = load_test_json("conditional.json")   
+        indict = load_test_json("conditional.json")
 
-        # baseline _analysis run 
+        # baseline _analysis run
         (baseline_solvers, baseline_shape_sys, baseline_shapes) = odetoolbox._analysis(
             copy.deepcopy(indict),
             disable_stiffness_check=True,
             enable_cse=False,
             log_level=logging.DEBUG)
 
-        # cse _analysis run 
+        # cse _analysis run
         (cse_solvers, cse_shape_sys, cse_shapes) = odetoolbox._analysis(
             copy.deepcopy(indict),
             disable_stiffness_check=True,
             enable_cse=True,
             log_level=logging.DEBUG)
 
-
-        baseline_solver = next(s for s in baseline_solvers if s["solver"] == "analytical")    # ensure solver was identified as analytical 
-        cse_solver = next(s for s in cse_solvers if s["solver"] == "analytical")
+        # ensure solver was identified as analytical
+        baseline_solver = next(
+            s for s in baseline_solvers if s["solver"] == "analytical")
+        cse_solver = next(
+            s for s in cse_solvers if s["solver"] == "analytical")
 
         # confirm both solvers have singularity conditions
         assert "conditions" in baseline_solver
         assert "conditions" in cse_solver
 
-        for cond_key, base_branch in baseline_solver["conditions"].items(): # baseline branches should be raw (no CSE temporaries),
+        for cond_key, base_branch in baseline_solver["conditions"].items(
+        ):  # baseline branches should be raw (no CSE temporaries),
             assert "cse" not in base_branch, f"unexpected CSE temporaries in baseline branch {cond_key}"
 
-        for cond_key, cse_branch in cse_solver["conditions"].items(): # cse branches should each carry their own "cse" sub-dict
+        for cond_key, cse_branch in cse_solver["conditions"].items(
+        ):  # cse branches should each carry their own "cse" sub-dict
             assert "cse" in cse_branch, f"expected CSE temporaries in cse branch {cond_key}"
 
         # keep the simulation short for testing
         simulation_time = 5E-3
         max_step_size = 1E-4
 
-        params_singular = {"tau_syn": "2.0", "tau_m": "2.0", "C_m": "250.0"}    # parameters to produce a singularity, division by 0. 
-        params_default  = {"tau_syn": "2.0", "tau_m": "5.0", "C_m": "250.0"}    # parameters to produce a default solver 
+        # parameters to produce a singularity, division by 0.
+        params_singular = {"tau_syn": "2.0", "tau_m": "2.0", "C_m": "250.0"}
+        # parameters to produce a default solver
+        params_default = {"tau_syn": "2.0", "tau_m": "5.0", "C_m": "250.0"}
 
         baseline_solver.setdefault("parameters", {})
         cse_solver.setdefault("parameters", {})
-        time_grid = np.linspace(0.0, simulation_time, 51)    # creating 51 steps for simulation time 
+        # creating 51 steps for simulation time
+        time_grid = np.linspace(0.0, simulation_time, 51)
 
-        for label, params in [("singular", params_singular), ("default", params_default)]:    # run two seperate common, singularity solver simulations 
-            baseline_solver["parameters"].update(params)  # update parameters based on the current simulation 
+        # run two seperate common, singularity solver simulations
+        for label, params in [
+                ("singular", params_singular), ("default", params_default)]:
+            # update parameters based on the current simulation
+            baseline_solver["parameters"].update(params)
             cse_solver["parameters"].update(params)
 
-            # Run through the existing analytical integrator pipeline passing baseline and cse solvers
-            baseline_integrator = AnalyticIntegrator(baseline_solver) 
+            # Run through the existing analytical integrator pipeline passing
+            # baseline and cse solvers
+            baseline_integrator = AnalyticIntegrator(baseline_solver)
             cse_integrator = AnalyticIntegrator(cse_solver)
 
-            for t in time_grid:    # structural check checking param tracking across gird 
+            for t in time_grid:    # structural check checking param tracking across gird
                 baseline_state = baseline_integrator.get_value(t)
                 cse_state = cse_integrator.get_value(t)
                 assert baseline_state.keys() == cse_state.keys()
 
-                for symbol in baseline_state:    # ensure that they are numerical exact 
-                    np.testing.assert_allclose(cse_state[symbol], baseline_state[symbol], rtol=1e-10, atol=1e-12, err_msg=f"CSE diverged from baseline on '{label}' branch at t={t}")
+                for symbol in baseline_state:    # ensure that they are numerical exact
+                    np.testing.assert_allclose(
+                        cse_state[symbol],
+                        baseline_state[symbol],
+                        rtol=1e-10,
+                        atol=1e-12,
+                        err_msg=f"CSE diverged from baseline on '{label}' branch at t={t}")

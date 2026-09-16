@@ -34,8 +34,7 @@ from .config import Config
 from .shapes import Shape
 from .singularity_detection import SingularityDetection, SingularityDetectionException
 from .sympy_helpers import SymmetricEq, _custom_simplify_expr, _is_zero, expMt, _sympy_parse_real
-from sympy.matrices.exceptions import NonInvertibleMatrixError 
-
+from sympy.matrices.exceptions import NonInvertibleMatrixError
 
 
 class GetBlockDiagonalException(Exception):
@@ -46,45 +45,56 @@ class GetBlockDiagonalException(Exception):
 
 
 def get_block_diagonal_blocks(A):
-    
-    assert A.shape[0] == A.shape[1], "matrix A should be square" # maps set of variables to the derivatives 
 
-    A_connectivity_undirected = (A != 0) | (A.T != 0)    # make symmetric (undirected) connectivity graph from the system matrix
+    # maps set of variables to the derivatives
+    assert A.shape[0] == A.shape[1], "matrix A should be square"
 
-    # creating symmetric boolean matrix where an edge (1) exists if two varibles influence eachother (undirected graph)
-    graph_components = scipy.sparse.csgraph.connected_components(A_connectivity_undirected)[1]
+    # make symmetric (undirected) connectivity graph from the system matrix
+    A_connectivity_undirected = (A != 0) | (A.T != 0)
 
-    # reordering the diagonal blocks 
+    # creating symmetric boolean matrix where an edge (1) exists if two
+    # varibles influence eachother (undirected graph)
+    graph_components = scipy.sparse.csgraph.connected_components(
+        A_connectivity_undirected)[1]
+
+    # reordering the diagonal blocks
     # if not all(np.diff(graph_components) >= 0): # if the blocks aren't contigious
     #     # Find the sorting map that groups matching component IDs together
     #     permutation = np.argsort(graph_components, kind="stable")
-        
+
     #     # Re-arrange the rows and columns of the system matrix A in memory
-    #     A = A[np.ix_(permutation, permutation)] # use np.ix_ here because A is a SymPy object matrix
-        
+    # A = A[np.ix_(permutation, permutation)] # use np.ix_ here because A is a
+    # SymPy object matrix
+
     #     # update the component array so it matches our newly sorted matrix layout
     #     graph_components = graph_components[permutation]
- 
-    # checking for ordering and testing if blocks are contigious 
+
+    # checking for ordering and testing if blocks are contigious
     if not all(np.diff(graph_components) >= 0):
-        raise GetBlockDiagonalException() 
+        raise GetBlockDiagonalException()
 
     blocks = []
-    for i in np.unique(graph_components): # code block for slicing out independent blocks 
+    for i in np.unique(
+            graph_components):  # code block for slicing out independent blocks
         idx = np.where(graph_components == i)[0]
 
-        if not all(np.diff(idx) > 0) or not (len(idx) == 1 or (len(np.unique(np.diff(idx))) == 1 and np.unique(np.diff(idx))[0] == 1)):
-            raise GetBlockDiagonalException() # checks for proximity of the blocks again for contigious input 
+        if not all(np.diff(idx) > 0) or not (len(idx) == 1 or (
+                len(np.unique(np.diff(idx))) == 1 and np.unique(np.diff(idx))[0] == 1)):
+            # checks for proximity of the blocks again for contigious input
+            raise GetBlockDiagonalException()
 
-        # for each isolated group of variables 
-        idx_min = np.amin(idx) 
+        # for each isolated group of variables
+        idx_min = np.amin(idx)
         idx_max = np.amax(idx)
-        block = A[idx_min:idx_max + 1, idx_min:idx_max + 1]  # assert assigned previously to ensure indices form a contiguous sequence of ints 
+        # assert assigned previously to ensure indices form a contiguous
+        # sequence of ints
+        block = A[idx_min:idx_max + 1, idx_min:idx_max + 1]
         blocks.append(block)
 
-    return blocks # diagonalized blocks returned 
+    return blocks  # diagonalized blocks returned
 
-    # not passing permutations bacK? 
+    # not passing permutations bacK?
+
 
 class PropagatorGenerationException(Exception):
     """
@@ -97,7 +107,14 @@ class SystemOfShapes:
     r"""
     Represent a dynamical system in the canonical form :math:`\mathbf{x}' = \mathbf{Ax} + \mathbf{b} + \mathbf{c}`.
     """
-    def __init__(self, x: sympy.Matrix, A: sympy.Matrix, b: sympy.Matrix, c: sympy.Matrix, shapes: List[Shape]):
+
+    def __init__(
+        self,
+        x: sympy.Matrix,
+        A: sympy.Matrix,
+        b: sympy.Matrix,
+        c: sympy.Matrix,
+            shapes: List[Shape]):
         r"""
         Initialize a dynamical system in the canonical form :math:`\mathbf{x}' = \mathbf{Ax} + \mathbf{b} + \mathbf{c}`.
 
@@ -113,32 +130,45 @@ class SystemOfShapes:
         self.c_ = c
         self.shapes_ = shapes
 
-    def get_shape_by_symbol(self, sym: Union[str, sympy.Symbol]) -> Optional[Shape]: # utility look up for shape by symbol
+    # utility look up for shape by symbol
+    def get_shape_by_symbol(
+            self, sym: Union[str, sympy.Symbol]) -> Optional[Shape]:
         for shape in self.shapes_:
             if str(shape.symbol) == str(sym):
                 return shape
 
         return None
 
-    def get_initial_value(self, sym: Union[str, sympy.Symbol]): # extracts default value of a variable. passing _P__V_m it searches for V_m default value. 
+    # extracts default value of a variable. passing _P__V_m it searches for
+    # V_m default value.
+    def get_initial_value(self, sym: Union[str, sympy.Symbol]):
         for shape in self.shapes_:
-            if str(shape.symbol) == str(sym).replace(Config().differential_order_symbol, "").replace("'", ""):
-                return shape.get_initial_value(str(sym).replace(Config().differential_order_symbol, "'"))
+            if str(
+                shape.symbol) == str(sym).replace(
+                Config().differential_order_symbol,
+                "").replace(
+                "'",
+                    ""):
+                return shape.get_initial_value(str(sym).replace(
+                    Config().differential_order_symbol, "'"))
 
         assert False, "Unknown symbol: " + str(sym)
 
-    def get_dependency_edges(self): # builds a directed graph of dependencies between your ODE varaibles. scanning eqs to see which variables influence eachother 
+    # builds a directed graph of dependencies between your ODE varaibles.
+    # scanning eqs to see which variables influence eachother
+    def get_dependency_edges(self):
         E = []
         for i, sym1 in enumerate(self.x_):
             for j, sym2 in enumerate(self.x_):
-                if not _is_zero(self.A_[j, i]) or sym1 in self.c_[j].free_symbols:
+                if not _is_zero(self.A_[j, i]) or sym1 in self.c_[
+                        j].free_symbols:
                     E.append((sym2, sym1))
 
         return E
 
-    def get_lin_cc_symbols(self, E, parameters=None): 
+    def get_lin_cc_symbols(self, E, parameters=None):
         r"""
-        Retrieve the variable symbols of those shapes that are linear and constant coefficient. 
+        Retrieve the variable symbols of those shapes that are linear and constant coefficient.
         In the case of a higher-order shape, will return all the variable symbols with ``"__d"`` suffixes up to the order of the shape.
         """
         # get all symbols for all shapes as a list
@@ -150,7 +180,8 @@ class SystemOfShapes:
                 _node_is_lin = True
             else:
                 _node_is_lin = False
-            all_shape_symbols = shape.get_state_variables(derivative_symbol=Config().differential_order_symbol)
+            all_shape_symbols = shape.get_state_variables(
+                derivative_symbol=Config().differential_order_symbol)
             for sym in all_shape_symbols:
                 node_is_lin[sym] = _node_is_lin
 
@@ -163,14 +194,16 @@ class SystemOfShapes:
         :param node_is_lin: Initial assumption about whether node is linear and constant coefficient.
         :param E: List of edges returned from dependency analysis.
         """
-        queue = [sym for sym, is_lin_cc in node_is_lin.items() if not is_lin_cc]
+        queue = [sym for sym, is_lin_cc in node_is_lin.items()
+                 if not is_lin_cc]
         while len(queue) > 0:
 
             n = queue.pop(0)
 
             if not node_is_lin[n]:
                 # mark dependent neighbours as also not lin_cc
-                dependent_neighbours = [n1 for (n1, n2) in E if n2 == n]    # nodes that depend on n
+                # nodes that depend on n
+                dependent_neighbours = [n1 for (n1, n2) in E if n2 == n]
                 for n_neigh in dependent_neighbours:
                     if node_is_lin[n_neigh]:
                         node_is_lin[n_neigh] = False
@@ -196,11 +229,11 @@ class SystemOfShapes:
 
     def get_sub_system(self, symbols):
         r"""
-        Return a new :python:`SystemOfShapes` instance which discards all symbols and equations except for those in :python:`symbols`. 
+        Return a new :python:`SystemOfShapes` instance which discards all symbols and equations except for those in :python:`symbols`.
             This is probably only sensible when the elements in :python:`symbols` do not dependend on any of the other symbols that will be thrown away.
         """
         idx = [i for i, sym in enumerate(self.x_) if sym in symbols]
-        idx_compl = [i for i, sym in enumerate(self.x_) if not sym in symbols]
+        idx_compl = [i for i, sym in enumerate(self.x_) if sym not in symbols]
 
         x_sub = self.x_[idx, :]
         A_sub = self.A_[idx, :][:, idx]
@@ -213,51 +246,71 @@ class SystemOfShapes:
 
         c_sub = c_old[idx, :]
 
-        shapes_sub = [shape for shape in self.shapes_ if shape.symbol in symbols]
+        shapes_sub = [
+            shape for shape in self.shapes_ if shape.symbol in symbols]
 
         return SystemOfShapes(x_sub, A_sub, b_sub, c_sub, shapes_sub)
 
-    def _generate_propagator_matrix(self, A, use_alternative_expM: bool = False) -> sympy.Matrix:
+    def _generate_propagator_matrix(
+            self, A, use_alternative_expM: bool = False) -> sympy.Matrix:
         r"""Generate the propagator matrix by matrix exponentiation."""
 
-        if use_alternative_expM: # computes matrix exponential 
-            expM = expMt 
+        if use_alternative_expM:  # computes matrix exponential
+            expM = expMt
         else:
             expM = sympy.exp
 
         try:
-            # optimized: compute propagators separately for each block diagonal element of ``A``
-            logging.getLogger(__name__).debug("Computing propagator matrix (block-diagonal optimisation)...")
-            
-            # get diagnoal blocks per matrix diagonal element of ``A`` && perform reordering of components if needed to avoid non-contigious output
+            # optimized: compute propagators separately for each block diagonal
+            # element of ``A``
+            logging.getLogger(__name__).debug(
+                "Computing propagator matrix (block-diagonal optimisation)...")
+
+            # get diagnoal blocks per matrix diagonal element of ``A`` &&
+            # perform reordering of components if needed to avoid
+            # non-contigious output
             blocks = get_block_diagonal_blocks(np.array(A))
-            
-            # for block of matrix A calculate the propagator 
-            propagators = [_custom_simplify_expr(expM(sympy.Matrix(block) * sympy.Symbol(Config().output_timestep_symbol, real=True))) for block in blocks]
-            
+
+            # for block of matrix A calculate the propagator
+            propagators = [
+                _custom_simplify_expr(
+                    expM(
+                        sympy.Matrix(block) * sympy.Symbol(
+                            Config().output_timestep_symbol,
+                            real=True))) for block in blocks]
+
             P = sympy.Matrix(scipy.linalg.block_diag(*propagators))
-        
+
         except GetBlockDiagonalException:
-            # naive: calculate propagators in one step -- can be quite slow if ``A`` is a large matrix
+            # naive: calculate propagators in one step -- can be quite slow if
+            # ``A`` is a large matrix
             logging.getLogger(__name__).debug("Computing propagator matrix...")
-            P = _custom_simplify_expr(expM(A * sympy.Symbol(Config().output_timestep_symbol, real=True))) # 
+            P = _custom_simplify_expr(
+                expM(
+                    A * sympy.Symbol(
+                        Config().output_timestep_symbol,
+                        real=True)))
 
         # check the result
         if sympy.I in sympy.preorder_traversal(P):
-            raise PropagatorGenerationException("The imaginary unit was found in the propagator matrix. This can happen if the dynamical system that was passed to ode-toolbox is unstable, i.e. one or more state variables will diverge to minus or positive infinity.")
+            raise PropagatorGenerationException(
+                "The imaginary unit was found in the propagator matrix. This can happen if the dynamical system that was passed to ode-toolbox is unstable, i.e. one or more state variables will diverge to minus or positive infinity.")
 
         return P
 
     def _merge_conditions(self, solver_dict):
         r"""merge together conditions (a OR b OR c OR...) if the propagators and update_expressions are the same"""
 
-        for condition, sub_solver_dict in solver_dict["conditions"].items(): # combining matrix maths and updating code blocks, called recursively 
-            for condition2, sub_solver_dict2 in solver_dict["conditions"].items():
+        for condition, sub_solver_dict in solver_dict["conditions"].items(
+        ):  # combining matrix maths and updating code blocks, called recursively
+            for condition2, sub_solver_dict2 in solver_dict["conditions"].items(
+            ):
                 if condition == condition2:
                     # don't check a condition against itself
                     continue
 
-                if sub_solver_dict["propagators"] == sub_solver_dict2["propagators"] and sub_solver_dict["update_expressions"] == sub_solver_dict2["update_expressions"]:
+                if sub_solver_dict["propagators"] == sub_solver_dict2["propagators"] and sub_solver_dict[
+                        "update_expressions"] == sub_solver_dict2["update_expressions"]:
                     # ``condition`` and ``condition2`` can be merged
                     solver_dict["conditions"]["(" + condition + ") || (" + condition2 + ")"] = sub_solver_dict
                     solver_dict["conditions"].pop(condition)
@@ -266,50 +319,75 @@ class SystemOfShapes:
 
         return solver_dict
 
-    def generate_propagator_solver(self, disable_singularity_detection: bool = False, disable_singularity_mitigation: bool = False, use_alternative_expM: bool = False):
+    def generate_propagator_solver(
+            self,
+            disable_singularity_detection: bool = False,
+            disable_singularity_mitigation: bool = False,
+            use_alternative_expM: bool = False):
         r"""
         Generate the propagator matrix and symbolic expressions for propagator-based updates; return as JSON.
         """
 
-        P = self._generate_propagator_matrix(self.A_, use_alternative_expM=use_alternative_expM)
+        P = self._generate_propagator_matrix(
+            self.A_, use_alternative_expM=use_alternative_expM)
 
         #
         #    singularity detection
         #
 
-        if not disable_singularity_detection: # checks for singularities 
+        if not disable_singularity_detection:  # checks for singularities
             try:
-                conditions = SingularityDetection.find_propagator_singularities(P, self.A_) # find singularities in the propagator matrix 
-                # find parameters sets to uncover where matrix calculation collapses
-                conditions = conditions.union(SingularityDetection.find_inhomogeneous_singularities(self.A_, self.b_)) 
-                conditions = SingularityDetection._remove_duplicate_conditions(conditions) # 
+                conditions = SingularityDetection.find_propagator_singularities(
+                    P, self.A_)  # find singularities in the propagator matrix
+                # find parameters sets to uncover where matrix calculation
+                # collapses
+                conditions = conditions.union(
+                    SingularityDetection.find_inhomogeneous_singularities(
+                        self.A_, self.b_))
+                conditions = SingularityDetection._remove_duplicate_conditions(
+                    conditions)
 
                 if conditions and not disable_singularity_mitigation:
-                    
-                    # generate default solver for the equation assuming that there are no singularity conditions
-                    default_solver = self.generate_solver_dict_based_on_propagator_matrix_(P) 
 
-                    # change the returned solver dictionary to include conditions
-                    solver_dict = {"solver": "analytical",
-                                   "state_variables": default_solver["state_variables"],
-                                   "initial_values": default_solver["initial_values"],
-                                   "conditions": {"default": {"propagators": default_solver["propagators"],
-                                                              "update_expressions": default_solver["update_expressions"]}}}
+                    # generate default solver for the equation assuming that
+                    # there are no singularity conditions
+                    default_solver = self.generate_solver_dict_based_on_propagator_matrix_(
+                        P)
+
+                    # change the returned solver dictionary to include
+                    # conditions
+                    solver_dict = {
+                        "solver": "analytical",
+                        "state_variables": default_solver["state_variables"],
+                        "initial_values": default_solver["initial_values"],
+                        "conditions": {
+                            "default": {
+                                "propagators": default_solver["propagators"],
+                                "update_expressions": default_solver["update_expressions"]}}}
 
                     #
                     #    generate all combinations of conditions
                     #
 
+                    # ERROR propagation explosion occuring here for every
+                    # permutation in the ode toolbox for singularities and
+                    # applies equalties and creates a new system of shapes
 
-                    # ERROR propagation explosion occuring here for every permutation in the ode toolbox for singularities and applies equalties and creates a new system of shapes 
+                    # number of conditions of singularities we need to be aware
+                    # of
+                    num_conditions = len(conditions)
+                    # maps out every possible combination of these conditions
+                    # with a true/false
+                    condition_permutations = list(itertools.product(
+                        [False, True], repeat=num_conditions))
 
-                    num_conditions = len(conditions) # number of conditions of singularities we need to be aware of 
-                    condition_permutations = list(itertools.product([False, True], repeat=num_conditions)) # maps out every possible combination of these conditions with a true/false
+                    logging.getLogger(__name__).info(
+                        "Alternate solvers will be generated for each of these conditions (and combinations thereof), which amounts to " + str(len(condition_permutations)) + " solvers that will be generated.")
 
-                    logging.getLogger(__name__).info("Alternate solvers will be generated for each of these conditions (and combinations thereof), which amounts to " + str(len(condition_permutations)) + " solvers that will be generated.")
-                    
-                    for condition_permutation in condition_permutations: # which of the current purmutations currently hold true 
-                        # each ``condition_permutation[i]`` is True/False corresponding to condition i
+                    # which of the current purmutations currently hold true
+                    for condition_permutation in condition_permutations:
+                        # each ``condition_permutation[i]`` is True/False
+                        # corresponding to condition i
 
                         cond_set = set()    # cond_set is the set of conditions that have to hold
                         for i, cond_holds in enumerate(condition_permutation):
@@ -321,145 +399,185 @@ class SystemOfShapes:
                                 # ``cond`` needs to **not** hold for this propagator
                                 cond_set.add(sympy.Ne(cond.lhs, cond.rhs))
 
-                        condition_str: str = " && ".join(["(" + str(eq.lhs) + (" == " if isinstance(eq, SymmetricEq) else "!=") + str(eq.rhs) + ")" for eq in cond_set])
+                        condition_str: str = " && ".join(["(" + str(eq.lhs) + (" == " if isinstance(
+                            eq, SymmetricEq) else "!=") + str(eq.rhs) + ")" for eq in cond_set])
 
-                        if not any([isinstance(eq, SymmetricEq) for eq in cond_set]):
-                            # this is the default condition, only containing inequalities
+                        if not any([isinstance(eq, SymmetricEq)
+                                   for eq in cond_set]):
+                            # this is the default condition, only containing
+                            # inequalities
                             continue
 
-                        logging.getLogger(__name__).debug("Generating solver for condition: " + str(condition_str))
+                        logging.getLogger(__name__).debug(
+                            "Generating solver for condition: " + str(condition_str))
 
                         conditional_A = self.A_.copy()
                         conditional_b = self.b_.copy()
                         conditional_c = self.c_.copy()
 
-                        # ERROR creating impossible branches that the dependencies don't actually depend on leading to the explosion 
+                        # ERROR creating impossible branches that the
+                        # dependencies don't actually depend on leading to the
+                        # explosion
                         for eq in cond_set:
                             if isinstance(eq, SymmetricEq):
                                 # replace equalities (not inequalities)
-                                conditional_A = conditional_A.subs(eq.lhs, eq.rhs)
-                                conditional_b = conditional_b.subs(eq.lhs, eq.rhs)
-                                conditional_c = conditional_c.subs(eq.lhs, eq.rhs)
+                                conditional_A = conditional_A.subs(
+                                    eq.lhs, eq.rhs)
+                                conditional_b = conditional_b.subs(
+                                    eq.lhs, eq.rhs)
+                                conditional_c = conditional_c.subs(
+                                    eq.lhs, eq.rhs)
 
-                        conditional_dynamics = SystemOfShapes(self.x_, conditional_A, conditional_b, conditional_c, self.shapes_)
-                        solver_dict_conditional = conditional_dynamics.generate_propagator_solver(disable_singularity_detection=True, disable_singularity_mitigation=True, use_alternative_expM=use_alternative_expM)
-                        solver_dict["conditions"][condition_str] = {"propagators": solver_dict_conditional["propagators"],
-                                                                    "update_expressions": solver_dict_conditional["update_expressions"]}
+                        conditional_dynamics = SystemOfShapes(
+                            self.x_, conditional_A, conditional_b, conditional_c, self.shapes_)
+                        solver_dict_conditional = conditional_dynamics.generate_propagator_solver(
+                            disable_singularity_detection=True,
+                            disable_singularity_mitigation=True,
+                            use_alternative_expM=use_alternative_expM)
+                        solver_dict["conditions"][condition_str] = {
+                            "propagators": solver_dict_conditional["propagators"],
+                            "update_expressions": solver_dict_conditional["update_expressions"]}
 
-                    # cleans up after the expensive combinations have been created 
-                    # finds branches with identical propagators and update_conditions explains enormous condition keys in json 
-                    solver_dict = self._merge_conditions(solver_dict) # simplifies logic scans through generated dict structure before exported to JSON template 
+                    # cleans up after the expensive combinations have been created
+                    # finds branches with identical propagators and
+                    # update_conditions explains enormous condition keys in
+                    # json
+                    # simplifies logic scans through generated dict structure
+                    # before exported to JSON template
+                    solver_dict = self._merge_conditions(solver_dict)
 
                     return solver_dict
 
             except SingularityDetectionException:
-                logging.getLogger(__name__).warning("Could not check the propagator matrix for singularities.")
+                logging.getLogger(__name__).warning(
+                    "Could not check the propagator matrix for singularities.")
 
         return self.generate_solver_dict_based_on_propagator_matrix_(P)
 
-
-    def generate_solver_dict_based_on_propagator_matrix_(self, P: sympy.Matrix):
+    def generate_solver_dict_based_on_propagator_matrix_(
+            self, P: sympy.Matrix):
 
         #
-        # generate symbols for each nonzero entry of the propagator matrix 
+        # generate symbols for each nonzero entry of the propagator matrix
         #
 
-        P_expr = {} # the expression corresponding to each propagator symbol
-        update_expr = {}  # keys are str(variable symbol), values are str(expressions) that evaluate to the new value of the corresponding key
+        P_expr = {}  # the expression corresponding to each propagator symbol
+        # keys are str(variable symbol), values are str(expressions) that
+        # evaluate to the new value of the corresponding key
+        update_expr = {}
 
-        connectivity = np.zeros(self.A_.shape, dtype=int)  # Find connected components of the system matrix
+        # Find connected components of the system matrix
+        connectivity = np.zeros(self.A_.shape, dtype=int)
 
         for row in range(self.A_.shape[0]):
-            for col in range(self.A_.shape[1]): 
+            for col in range(self.A_.shape[1]):
 
-                # build a connectivity matrix from A_ marking which state variables are linked by a nonzero coefficient 
+                # build a connectivity matrix from A_ marking which state
+                # variables are linked by a nonzero coefficient
                 if (not _is_zero(self.A_[row, col]) or not _is_zero(self.A_[col, row])):
-                    connectivity[row, col] = 1 
+                    connectivity[row, col] = 1
 
-        # find connected components, grouping state variables into clusters that are coupled 
+        # find connected components, grouping state variables into clusters
+        # that are coupled
         _, component_labels = scipy.sparse.csgraph.connected_components(
             scipy.sparse.csr_matrix(connectivity),
             directed=False)
 
-        # Compute a particular solution for individual coupled inhomogeneous blocks
+        # Compute a particular solution for individual coupled inhomogeneous
+        # blocks
         particular_solutions = {}
-        constant_drift_rows = set() # initialise the constant drift dictionary  XXX not tested. 
+        # initialise the constant drift dictionary  XXX not tested.
+        constant_drift_rows = set()
 
-        for component in set(component_labels): # for each cluster with a nonzero inhomogenous part 
+        for component in set(
+                component_labels):  # for each cluster with a nonzero inhomogenous part
 
-            indices = [i for i, label in enumerate(component_labels) if label == component]
+            indices = [i for i, label in enumerate(
+                component_labels) if label == component]
 
             A_block = self.A_.extract(indices, indices)
             b_block = self.b_.extract(indices, [0])
 
             if all(_is_zero(b_block[i, 0]) for i in range(len(indices))):
-                continue 
-
-            # Isolated equation of the form, checks for steady state 
-            if (len(indices) == 1 and _is_zero(A_block[0, 0])):
-                constant_drift_rows.add(indices[0]) # if matrix is non-invertible, append to constant drift dict 
                 continue
 
-            try: # extracts the corresponding sub-matrix/sub-vector and solves the whole block via matrix inversion
+            # Isolated equation of the form, checks for steady state
+            if (len(indices) == 1 and _is_zero(A_block[0, 0])):
+                # if matrix is non-invertible, append to constant drift dict
+                constant_drift_rows.add(indices[0])
+                continue
+
+            try:  # extracts the corresponding sub-matrix/sub-vector and solves the whole block via matrix inversion
                 x_particular = -(A_block.inv() * b_block)
 
-            except NonInvertibleMatrixError as exc: # if a blocks matrix is not invertible, eq may not have the inverse of matrix A?
-                raise PropagatorGenerationException("Could not compute a particular solution for the coupled inhomogeneous system containing: "
-                    + ", ".join(str(self.x_[i]) for i in indices)) from exc
+            # if a blocks matrix is not invertible, eq may not have the inverse
+            # of matrix A?
+            except NonInvertibleMatrixError as exc:
+                raise PropagatorGenerationException(
+                    "Could not compute a particular solution for the coupled inhomogeneous system containing: " + ", ".join(str(self.x_[i]) for i in indices)) from exc
 
             for local_idx, global_idx in enumerate(indices):
-                particular_solutions[global_idx] = (_custom_simplify_expr(x_particular[local_idx, 0]))
-                
-        # guards against nonlinear eq for propagator generation 
-        for row in range(P.shape[0]):
-            if not _is_zero(self.c_[row]): 
-                raise PropagatorGenerationException("For symbol "
-                    + str(self.x_[row])
-                    + ": nonlinear part should be zero for propagators")
+                particular_solutions[global_idx] = (
+                    _custom_simplify_expr(x_particular[local_idx, 0]))
 
-            # guards against higher-order inhomogenous ODE's having a non zero constant 
-            if (not _is_zero(self.b_[row]) and self.shape_order_from_system_matrix(row) > 1):
+        # guards against nonlinear eq for propagator generation
+        for row in range(P.shape[0]):
+            if not _is_zero(self.c_[row]):
+                raise PropagatorGenerationException("For symbol " + str(self.x_[row]) + ": nonlinear part should be zero for propagators")
+
+            # guards against higher-order inhomogenous ODE's having a non zero
+            # constant
+            if (not _is_zero(
+                    self.b_[row]) and self.shape_order_from_system_matrix(row) > 1):
                 raise PropagatorGenerationException(
-                    "For symbol "
-                    + str(self.x_[row])
-                    + ": higher-order inhomogeneous ODEs are not supported")
+                    "For symbol " + str(self.x_[row]) + ": higher-order inhomogeneous ODEs are not supported")
 
             update_expr_terms = []
             for col in range(P.shape[1]):
-                if not _is_zero(P[row, col]): # for every nonzero entry of the propagator matrix name the symbol 
+                if not _is_zero(
+                        P[row, col]):  # for every nonzero entry of the propagator matrix name the symbol
                     sym_str = (Config().propagators_prefix + "__{}__{}".format(str(self.x_[row]), str(self.x_[col])))
-                    P_expr[sym_str] = P[row, col] # store the value 
+                    P_expr[sym_str] = P[row, col]  # store the value
 
-                    if col in particular_solutions: # if col contains a known solution after propagations the deviation from steady state forward 
-                        update_expr_terms.append(sym_str + " * (" + str(self.x_[col]) + " - (" + str(particular_solutions[col]) + "))")
+                    if col in particular_solutions:  # if col contains a known solution after propagations the deviation from steady state forward
+                        update_expr_terms.append(
+                            sym_str + " * (" + str(self.x_[col]) + " - (" + str(particular_solutions[col]) + "))")
                     else:
-                        update_expr_terms.append(sym_str + " * " + str(self.x_[col])) # no solution, isolated solving 
+                        # no solution, isolated solving
+                        update_expr_terms.append(
+                            sym_str + " * " + str(self.x_[col]))
 
             if row in particular_solutions:
-                update_expr_terms.append("(" + str(particular_solutions[row])+ ")") # add back this row's own steady-state offset
+                # add back this row's own steady-state offset
+                update_expr_terms.append(
+                    "(" + str(particular_solutions[row]) + ")")
 
-            elif row in constant_drift_rows: # handle non-invertible matrices by implementing linear drift term XXX not tested. 
-                update_expr_terms.append(Config().output_timestep_symbol + " * (" + str(self.b_[row]) + ")")
+            # handle non-invertible matrices by implementing linear drift term
+            # XXX not tested.
+            elif row in constant_drift_rows:
+                update_expr_terms.append(
+                    Config().output_timestep_symbol + " * (" + str(self.b_[row]) + ")")
 
-            # parses solution from plain py into sympy 
+            # parses solution from plain py into sympy
             update_expr[str(self.x_[row])] = " + ".join(update_expr_terms)
-            update_expr[str(self.x_[row])] = _sympy_parse_real(update_expr[str(self.x_[row])], global_dict=Shape._sympy_globals)
+            update_expr[str(self.x_[row])] = _sympy_parse_real(
+                update_expr[str(self.x_[row])], global_dict=Shape._sympy_globals)
 
             if not _is_zero(self.b_[row]):
-                update_expr[str(self.x_[row])] = (_custom_simplify_expr(update_expr[str(self.x_[row])])) # simplify expression
+                update_expr[str(self.x_[row])] = (_custom_simplify_expr(
+                    update_expr[str(self.x_[row])]))  # simplify expression
 
-        # gather and store propagators 
+        # gather and store propagators
         all_state_symbols = [str(sym) for sym in self.x_]
-        initial_values = {sym: str(self.get_initial_value(sym)) for sym in all_state_symbols}
+        initial_values = {sym: str(self.get_initial_value(sym))
+                          for sym in all_state_symbols}
         solver_dict = {"solver": "analytical",
                        "propagators": P_expr,
                        "update_expressions": update_expr,
                        "state_variables": all_state_symbols,
                        "initial_values": initial_values}
 
-
         return solver_dict
-
 
     def generate_numeric_solver(self, state_variables=None):
         r"""
@@ -467,7 +585,8 @@ class SystemOfShapes:
         """
         update_expr = self.reconstitute_expr(state_variables=state_variables)
         all_state_symbols = [str(sym) for sym in self.x_]
-        initial_values = {sym: str(self.get_initial_value(sym)) for sym in all_state_symbols}
+        initial_values = {sym: str(self.get_initial_value(sym))
+                          for sym in all_state_symbols}
 
         solver_dict = {"solver": "numeric",   # will be appended to if stiffness testing is used
                        "update_expressions": update_expr,
@@ -493,14 +612,18 @@ class SystemOfShapes:
                 if str(self.A_[row, col]) in ["1", "1.", "1.0"]:
                     update_expr_terms.append(str(y))
                 else:
-                    update_expr_terms.append(str(y) + " * (" + str(self.A_[row, col]) + ")")
-            update_expr[str(x)] = " + ".join(update_expr_terms) + " + (" + str(self.b_[row]) + ") + (" + str(self.c_[row]) + ")"
-            update_expr[str(x)] = _sympy_parse_real(update_expr[str(x)], global_dict=Shape._sympy_globals)
+                    update_expr_terms.append(
+                        str(y) + " * (" + str(self.A_[row, col]) + ")")
+            update_expr[str(x)] = " + ".join(update_expr_terms) + \
+                " + (" + str(self.b_[row]) + ") + (" + str(self.c_[row]) + ")"
+            update_expr[str(x)] = _sympy_parse_real(
+                update_expr[str(x)], global_dict=Shape._sympy_globals)
 
         # custom expression simplification
         for name, expr in update_expr.items():
             update_expr[name] = _custom_simplify_expr(expr)
-            collect_syms = [sym for sym in update_expr[name].free_symbols if not (sym in state_variables or str(sym) in state_variables)]
+            collect_syms = [sym for sym in update_expr[name].free_symbols if not (
+                sym in state_variables or str(sym) in state_variables)]
             update_expr[name] = sympy.collect(update_expr[name], collect_syms)
 
         return update_expr
@@ -513,7 +636,8 @@ class SystemOfShapes:
             for j in range(A.shape[1]):
                 A[i, j] = not _is_zero(self.A_[i, j])
 
-        scc = scipy.sparse.csgraph.connected_components(A, connection="strong")[1]
+        scc = scipy.sparse.csgraph.connected_components(
+            A, connection="strong")[1]
         shape_order = sum(scc == scc[idx])
         return shape_order
 
@@ -535,7 +659,8 @@ class SystemOfShapes:
             for j in range(A.shape[1]):
                 A[i, j] = not _is_zero(self.A_[i, j])
 
-        scc = scipy.sparse.csgraph.connected_components(A, connection="strong")[1]
+        scc = scipy.sparse.csgraph.connected_components(
+            A, connection="strong")[1]
         idx = np.where(scc == scc[idx])[0]
         return [self.x_[i] for i in idx]
 
@@ -562,19 +687,22 @@ class SystemOfShapes:
         i = 0
         for shape in shapes:
             for j in range(shape.order):
-                x[i] = shape.get_state_variables(derivative_symbol=Config().differential_order_symbol)[j]
+                x[i] = shape.get_state_variables(
+                    derivative_symbol=Config().differential_order_symbol)[j]
                 i += 1
 
         i = 0
         for shape in shapes:
-            highest_diff_sym_idx = [k for k, el in enumerate(x) if el == sympy.Symbol(str(shape.symbol) + Config().differential_order_symbol * (shape.order - 1), real=True)][0]
+            highest_diff_sym_idx = [k for k, el in enumerate(x) if el == sympy.Symbol(str(
+                shape.symbol) + Config().differential_order_symbol * (shape.order - 1), real=True)][0]
             shape_expr = shape.reconstitute_expr()
 
             #
             #   grab the defining expression and separate into linear and nonlinear part
             #
 
-            lin_factors, inhom_term, nonlin_term = Shape.split_lin_inhom_nonlin(shape_expr, x, parameters=parameters)
+            lin_factors, inhom_term, nonlin_term = Shape.split_lin_inhom_nonlin(
+                shape_expr, x, parameters=parameters)
             A[highest_diff_sym_idx, :] = lin_factors.T
             b[highest_diff_sym_idx] = inhom_term
             c[highest_diff_sym_idx] = nonlin_term
