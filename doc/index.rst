@@ -159,6 +159,9 @@ The following flags exist:
    * - ``log_level``
      - :python:`logging.WARN`
      - Sets the logging threshold. Logging messages which are less severe than ``log_level`` will be ignored. Log levels can be provided as an integer or string, for example "INFO" (more messages) or "WARN" (fewer messages). For a list of valid logging levels, see https://docs.python.org/3/library/logging.html#logging-levels
+   * - ``disable_cse``
+     - :python: `False`
+     - Set to True to enable common subexpression elimination (CSE) in the analytical and propagator solver's expressions. ODE-toolbox will then return a set of auxiliary "helper" expressions that are each computed once and reused, rather than being recomputed inline every time they occur. 
 
 
 Input
@@ -398,6 +401,8 @@ ODE-toolbox will return a list of solvers. **Each solver has the following keys:
 - :python:`"state_variables"`\ : an unordered list containing all variable symbols.
 - :python:`"initial_values"`\ : a dictionary that maps each variable symbol (in string form) to a SymPy expression. For example :python:`"g" : "e / tau"`.
 - :python:`"parameters"`\ : only present when parameters were supplied in the input. The input parameters are copied into the output for convenience.
+- :python:`"cse"`\ : only present if cse is not disabled. Dictionary mapping temporary varaibles (in string form) to the repeated SymPy expression. Here these temporary variables will be found in `update_expressions` and `propagators`.
+
 
 **Numeric solvers have the following extra entries:**
 
