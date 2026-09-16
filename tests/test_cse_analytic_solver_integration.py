@@ -31,6 +31,8 @@ import sympy
 import odetoolbox
 from odetoolbox.analytic_integrator import (AnalyticIntegrator)
 from tests.test_utils import load_test_json
+import json 
+
 
 try:
     import pygsl.odeiv as odeiv
@@ -69,6 +71,8 @@ class TestCSENumericalSolver:
             disable_singularity_detection=True,
             enable_cse=True,  # specified as true for cse
             log_level=logging.DEBUG)
+
+        print(json.dumps(cse_solvers, indent=1))
 
         # verify _analysis produced solvers
         assert len(baseline_solvers) == 1

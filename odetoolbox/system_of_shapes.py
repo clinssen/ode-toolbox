@@ -718,6 +718,8 @@ class SystemOfShapes:
 
         solver_dict = {
             "solver": "analytical",
+            "propagators": P_expr,
+            "update_expressions": update_expr,
             "state_variables": all_state_symbols,
             "initial_values": initial_values}
 
