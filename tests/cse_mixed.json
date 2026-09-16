@@ -1,5 +1,4 @@
 {
-    "__info": "Mixed analytical and numerical system designed to test independent CSE namespaces",
     "dynamics": [
         {
             "expression": "a' = -a / tau",

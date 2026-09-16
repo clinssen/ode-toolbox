@@ -30,7 +30,6 @@ import pytest
 import sympy
 import odetoolbox
 from odetoolbox.analytic_integrator import (AnalyticIntegrator)
-from odetoolbox.mixed_integrator import (MixedIntegrator)
 from tests.test_utils import load_test_json
 
 try:

@@ -21,8 +21,9 @@ import copy
 import logging
 import numpy as np
 import pytest
+import json
 import odetoolbox
-from odetoolbox.mixed_integrator import MixedIntegrator
+from odetoolbox.analytic_integrator import (AnalyticIntegrator)
 from tests.test_utils import load_test_json
 try:
     import pygsl.odeiv as odeiv
@@ -45,28 +46,26 @@ then we can maybe apply these variables knowing the singularity and enforce this
 can we make a situation in which a cse temporary leads to a singularity problem? 
 """
 
-class TestCSEMixedSolver:
+
+class TestCSESingularityHandling:
     """
     Isolated ODE-toolbox validation of CSE for a system containing both an
     analytical solver block and a numerical solver block.
     """
 
-
     @pytest.mark.skipif(not PYGSL_AVAILABLE, reason="Need GSL integrator to perform numerical CSE test")
-    def test_cse_numerical_integrator_matches_baseline(self):
+    def test_cse_singularity_handling(self):
         """
-        Verify that numerical CSE does not change the solution produced
-        by MixedIntegrator/GSL.
+        Verify that a conditional cse json vs a baseline conditional handling does not change the solution produced
         """
 
-        indict = load_test_json("cse_mixed.json")
+        # load in json that will produce a conditional tau_syn =! tau_m
+        indict = load_test_json("conditional.json")   
 
         # baseline _analysis run 
         (baseline_solvers, baseline_shape_sys, baseline_shapes) = odetoolbox._analysis(
             copy.deepcopy(indict),
             disable_stiffness_check=True,
-            disable_analytic_solver=True,
-            disable_singularity_detection=True,
             enable_cse=False,
             log_level=logging.DEBUG)
 
@@ -74,86 +73,46 @@ class TestCSEMixedSolver:
         (cse_solvers, cse_shape_sys, cse_shapes) = odetoolbox._analysis(
             copy.deepcopy(indict),
             disable_stiffness_check=True,
-            disable_analytic_solver=True,
-            disable_singularity_detection=True,
             enable_cse=True,
             log_level=logging.DEBUG)
 
-        # assert that _analysis produced solvers 
-        assert len(baseline_solvers) == 1
-        assert len(cse_solvers) == 1
-        baseline_solver = baseline_solvers[0]
-        cse_solver = cse_solvers[0]
 
-        # assert that solvers correctly identified solver_type
-        assert baseline_solver["solver"].startswith("numeric")
-        assert cse_solver["solver"].startswith("numeric")
+        baseline_solver = next(s for s in baseline_solvers if s["solver"] == "analytical")    # ensure solver was identified as analytical 
+        cse_solver = next(s for s in cse_solvers if s["solver"] == "analytical")
 
-        # Confirm CSE happened
-        assert "cse" not in baseline_solver
-        assert "cse" in cse_solver
-        assert ("update_expressions" in cse_solver["cse"]) # numeric so only update expr 
+        # confirm both solvers have singularity conditions
+        assert "conditions" in baseline_solver
+        assert "conditions" in cse_solver
 
-        # The nonlinear fixture grows quickly, so keep the simulation short.
+        for cond_key, base_branch in baseline_solver["conditions"].items(): # baseline branches should be raw (no CSE temporaries),
+            assert "cse" not in base_branch, f"unexpected CSE temporaries in baseline branch {cond_key}"
+
+        for cond_key, cse_branch in cse_solver["conditions"].items(): # cse branches should each carry their own "cse" sub-dict
+            assert "cse" in cse_branch, f"expected CSE temporaries in cse branch {cond_key}"
+
+        # keep the simulation short for testing
         simulation_time = 5E-3
         max_step_size = 1E-4
 
-        # construct the mixed integrator baseline run 
-        baseline_integrator = MixedIntegrator(
-            odeiv.step_rk4,
-            baseline_shape_sys,
-            baseline_shapes,
-            analytic_solver_dict=None,
-            numeric_solver_dict=baseline_solver, # baseline solver no cse applied 
-            parameters=copy.deepcopy(indict.get("parameters", {})), # ensure entire dict is the same for params for comparision
-            spike_times={},
-            random_seed=123,
-            max_step_size=max_step_size,
-            integration_accuracy_abs=1E-6,  # accuaracy leads to number of steps simulation steps taken 
-            integration_accuracy_rel=1E-6,
-            sim_time=simulation_time,
-            alias_spikes=False) # tracking of spikes, continuous, or snapping to timesteps? 
+        params_singular = {"tau_syn": "2.0", "tau_m": "2.0", "C_m": "250.0"}    # parameters to produce a singularity, division by 0. 
+        params_default  = {"tau_syn": "2.0", "tau_m": "5.0", "C_m": "250.0"}    # parameters to produce a default solver 
 
-        # construct the mixed integrator cse run 
-        cse_integrator = MixedIntegrator(
-            odeiv.step_rk4,
-            cse_shape_sys,
-            cse_shapes,
-            analytic_solver_dict=None,
-            numeric_solver_dict=cse_solver, # cse solver provided
-            parameters=copy.deepcopy(indict.get("parameters", {})),
-            spike_times={},
-            random_seed=123,
-            max_step_size=max_step_size,
-            integration_accuracy_abs=1E-4,
-            integration_accuracy_rel=1E-4,
-            sim_time=simulation_time,
-            alias_spikes=False)
+        baseline_solver.setdefault("parameters", {})
+        cse_solver.setdefault("parameters", {})
+        time_grid = np.linspace(0.0, simulation_time, 51)    # creating 51 steps for simulation time 
 
-        # Run the GSL simulation on the constructed integators  
-        baseline_result = (baseline_integrator.integrate_ode(
-                initial_values={}, h_min_lower_bound=1E-12, raise_errors=True, debug=True))
+        for label, params in [("singular", params_singular), ("default", params_default)]:    # run two seperate common, singularity solver simulations 
+            baseline_solver["parameters"].update(params)  # update parameters based on the current simulation 
+            cse_solver["parameters"].update(params)
 
-        cse_result = (cse_integrator.integrate_ode(
-                initial_values={}, h_min_lower_bound=1E-12, raise_errors=True, debug=True))
+            # Run through the existing analytical integrator pipeline passing baseline and cse solvers
+            baseline_integrator = AnalyticIntegrator(baseline_solver) 
+            cse_integrator = AnalyticIntegrator(cse_solver)
 
-        # unpact tuples from integrate ode 
-        baseline_t_log = baseline_result[4] # 1d array of time steps logged
-        baseline_y_log = baseline_result[6] # 2d array state var values per timestamp 
-        baseline_symbols = baseline_result[7] # Symbol mappings
-        cse_t_log = cse_result[4]
-        cse_y_log = cse_result[6]
-        cse_symbols = cse_result[7]
+            for t in time_grid:    # structural check checking param tracking across gird 
+                baseline_state = baseline_integrator.get_value(t)
+                cse_state = cse_integrator.get_value(t)
+                assert baseline_state.keys() == cse_state.keys()
 
-        # Same variables to be integrated, ensures that cse has not broken the code 
-        assert ([str(symbol) for symbol in baseline_symbols] == [str(symbol) for symbol in cse_symbols])
-
-        # execution check ensure that both simulations reached the requested time 
-        np.testing.assert_allclose(baseline_t_log[-1], simulation_time)
-        np.testing.assert_allclose(cse_t_log[-1], simulation_time)
-
-        # use rtol and atol for numerical thresholds to ensure cse has not broken the mathematics of the ode 
-        np.testing.assert_allclose(cse_y_log,baseline_y_log,rtol=1E-6,atol=1E-8)  # compare state variables across all timepoints 
-
-        print("Numerical baseline final:",baseline_y_log[-1])
-        print("Numerical CSE final:",cse_y_log[-1])
+                for symbol in baseline_state:    # ensure that they are numerical exact 
+                    np.testing.assert_allclose(cse_state[symbol], baseline_state[symbol], rtol=1e-10, atol=1e-12, err_msg=f"CSE diverged from baseline on '{label}' branch at t={t}")
