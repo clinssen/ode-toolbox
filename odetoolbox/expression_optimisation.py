@@ -326,7 +326,7 @@ def _apply_cse_to_expression_region(region, symbol_prefix, solver_name="unknown"
     return result
 
 
-def apply_cse_to_solver(solver, symbol_prefix="__ode_cse_", optimise_condition_branches=False):
+def apply_cse_to_solver(solver, symbol_prefix="__ode_cse_"):
 
     """
     Apply CSE to one ODE-toolbox solver dictionary. Singularity branches are treated as independent execution regions.
@@ -336,10 +336,6 @@ def apply_cse_to_solver(solver, symbol_prefix="__ode_cse_", optimise_condition_b
     solver_name = solver.get("solver", "unknown")
 
     if "conditions" in solver: # handle singularity conditions
-
-        # enable conditions to pass through depending on flag
-        if not optimise_condition_branches:
-            return dict(solver)
 
         result = dict(solver)
         optimised_conditions = {}
@@ -359,7 +355,7 @@ def apply_cse_to_solver(solver, symbol_prefix="__ode_cse_", optimise_condition_b
     return _apply_cse_to_expression_region(solver, symbol_prefix=symbol_prefix, solver_name=solver_name)
 
 
-def _apply_cse_to_solver_blocks(solver_blocks, optimise_condition_branches=False):
+def _apply_cse_to_solver_blocks(solver_blocks):
 
     """
     Apply CSE independently to every solver block produced by ODEtoolbox
@@ -388,7 +384,7 @@ def _apply_cse_to_solver_blocks(solver_blocks, optimise_condition_branches=False
         else:
             symbol_prefix = f"__ode_cse_"
 
-        result.append(apply_cse_to_solver(solver, symbol_prefix=symbol_prefix, optimise_condition_branches=(optimise_condition_branches)))
+        result.append(apply_cse_to_solver(solver, symbol_prefix=symbol_prefix))
 
     return result
 
@@ -552,3 +548,20 @@ def expand_cse_solver(solver):
     result.pop("cse", None) 
 
     return result
+
+
+def _has_cse(d):
+    """ 
+    This helper function recursively searches for dictionaries containing the key "cse", searching through top-level
+    as well as nested structures behind "conditions" 
+    """
+
+    if not isinstance(d, dict): # ensure input is a dictionary 
+        return False
+
+    if any(str(k).lower() == "cse" for k in d.keys()): # case sensitive top-level search 
+        return True
+
+    if "conditions" in d: # if conditions exist, loop through all sub-dicts inside searching for cse 
+        return any(_has_cse(branch) for branch in d["conditions"].values())
+    return False

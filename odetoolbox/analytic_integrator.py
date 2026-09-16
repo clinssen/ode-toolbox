@@ -31,7 +31,7 @@ from odetoolbox.sympy_helpers import SymmetricEq, _sympy_parse_real
 
 from .shapes import Shape
 from .integrator import Integrator
-from .expression_optimisation import expand_cse_solver
+from .expression_optimisation import expand_cse_solver, _has_cse
 
 
 
@@ -41,22 +41,20 @@ class AnalyticIntegrator(Integrator):
     Integrate a dynamical system by means of the propagators returned by ODE-toolbox.
     """
 
-    def __init__(self, solver_dict, spike_times: Optional[Dict[str, List[float]]] = None, enable_caching: bool = True, enable_cse=False):
+    def __init__(self, solver_dict, spike_times: Optional[Dict[str, List[float]]] = None, enable_caching: bool = True):
         r"""
         :param solve_dict: The results dictionary returned by a call to :python:`odetoolbox.analysis()`.
         :param spike_times: For each variable, used as a key, the list of times at which a spike occurs.
         :param enable_caching: Allow caching of results between requested times.
-        :param enable_cse: Whether to consume CSE metadata containined in the solver dictionary. Disabled by default for backwards compatibility. 
         """
 
         super(AnalyticIntegrator, self).__init__()
-        self.enable_cse = enable_cse
-
-        if self.enable_cse:   # if cse is enabled 
+        
+        is_cse_active = _has_cse(solver_dict)
+        if is_cse_active: 
             self.solver_dict = expand_cse_solver(solver_dict)  # expand cse representations for analytic integrator
         else: # if cse disabled, solver is pased to analytical integrator 
             self.solver_dict = solver_dict
-
 
         self.all_variable_symbols = self.solver_dict["state_variables"]
         self.all_variable_symbols = [sympy.Symbol(s, real=True) for s in self.all_variable_symbols]
