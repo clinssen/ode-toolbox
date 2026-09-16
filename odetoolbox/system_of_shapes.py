@@ -454,9 +454,18 @@ class SystemOfShapes:
 
         return self.generate_solver_dict_based_on_propagator_matrix_(P)
 
-    def generate_solver_dict_based_on_propagator_matrix_(
-            self, P: sympy.Matrix):
 
+
+
+
+
+    def generate_solver_dict_based_on_propagator_matrix_(self, P: sympy.Matrix):
+        """
+        generate the analytical solver from a linear ode propagator matrix. Computes block-wise for coupled systems using 
+        inverse of block or via constant-drift equations for isolated quations 
+
+        """
+        
         #
         # generate symbols for each nonzero entry of the propagator matrix
         #
@@ -466,8 +475,9 @@ class SystemOfShapes:
         # evaluate to the new value of the corresponding key
         update_expr = {}
 
-        # Find connected components of the system matrix
-        connectivity = np.zeros(self.A_.shape, dtype=int)
+        particular_solutions, constant_drift_rows = ( self._get_particular_solutions_for_coupled_components_())
+
+        
 
         for row in range(self.A_.shape[0]):
             for col in range(self.A_.shape[1]):
@@ -486,11 +496,12 @@ class SystemOfShapes:
         # Compute a particular solution for individual coupled inhomogeneous
         # blocks
         particular_solutions = {}
-        # initialise the constant drift dictionary  XXX not tested.
+        
+        # initialise the constant drift dictionary
         constant_drift_rows = set()
 
         for component in set(
-                component_labels):  # for each cluster with a nonzero inhomogenous part
+                component_labels):  # for each coupled inhomogenous blocks
 
             indices = [i for i, label in enumerate(
                 component_labels) if label == component]
@@ -498,11 +509,13 @@ class SystemOfShapes:
             A_block = self.A_.extract(indices, indices)
             b_block = self.b_.extract(indices, [0])
 
+            # Homogeneous blocks do not require a particular solution.
             if all(_is_zero(b_block[i, 0]) for i in range(len(indices))):
                 continue
 
             # Isolated equation of the form, checks for steady state
             if (len(indices) == 1 and _is_zero(A_block[0, 0])):
+                
                 # if matrix is non-invertible, append to constant drift dict
                 constant_drift_rows.add(indices[0])
                 continue
@@ -511,16 +524,17 @@ class SystemOfShapes:
                 x_particular = -(A_block.inv() * b_block)
 
             # if a blocks matrix is not invertible, eq may not have the inverse
-            # of matrix A?
+            # of matrix A
             except NonInvertibleMatrixError as exc:
                 raise PropagatorGenerationException(
                     "Could not compute a particular solution for the coupled inhomogeneous system containing: " + ", ".join(str(self.x_[i]) for i in indices)) from exc
 
             for local_idx, global_idx in enumerate(indices):
-                particular_solutions[global_idx] = (
-                    _custom_simplify_expr(x_particular[local_idx, 0]))
+                particular_solutions, constant_drift_rows = (
+                    self._get_particular_solutions_for_coupled_components_()
+                )
 
-        # guards against nonlinear eq for propagator generation
+        # generate symbolic propagators and construct the state update 
         for row in range(P.shape[0]):
             if not _is_zero(self.c_[row]):
                 raise PropagatorGenerationException("For symbol " + str(self.x_[row]) + ": nonlinear part should be zero for propagators")
@@ -553,7 +567,6 @@ class SystemOfShapes:
                     "(" + str(particular_solutions[row]) + ")")
 
             # handle non-invertible matrices by implementing linear drift term
-            # XXX not tested.
             elif row in constant_drift_rows:
                 update_expr_terms.append(
                     Config().output_timestep_symbol + " * (" + str(self.b_[row]) + ")")
@@ -571,11 +584,142 @@ class SystemOfShapes:
         all_state_symbols = [str(sym) for sym in self.x_]
         initial_values = {sym: str(self.get_initial_value(sym))
                           for sym in all_state_symbols}
-        solver_dict = {"solver": "analytical",
-                       "propagators": P_expr,
-                       "update_expressions": update_expr,
-                       "state_variables": all_state_symbols,
-                       "initial_values": initial_values}
+   
+
+    def _get_coupled_components_(self):
+        """
+        Find groups of state variables that are coupled through the system matrix. 
+
+        Two state variables belong to the same component if they are connected
+        through a non-zero coefficient in `A`. The coupling is treated as
+        undirection and variables are treated together when computing a particular solution 
+        """
+
+        # intialise empty adjacency matrix 
+        connectivity = np.zeros(self.A_.shape, dtype=int)
+
+        for row in range(self.A_.shape[0]):
+            for col in range(self.A_.shape[1]):
+
+                if (not _is_zero(self.A_[row, col]) or not _is_zero(self.A_[col, row])):
+                    connectivity[row, col] = 1   # if a connection is found in the nest loop mark it as 1. 
+
+        # finds clusters of connected variables (coupled blocks)
+        _, component_labels = scipy.sparse.csgraph.connected_components(scipy.sparse.csr_matrix(connectivity), directed=False)
+
+        # re-shape Scipy raw output into useable blocks of indices
+        return [ [i for i, label in enumerate(component_labels) if label == component] for component in set(component_labels) ]
+
+    def generate_solver_dict_based_on_propagator_matrix_(self, P: sympy.Matrix):
+        """
+        This function generates the analytical solver dictionary representation based off the propagator matrix to advance the model forward at dt. 
+        For isolated components, it just adds a fixed constant per dt (solving refr_T bug in #107). For coupled components, it measures the drift away from
+        dt and calculates trajectory (x(t) - steady_state) for next dt. 
+        """
+
+        #
+        # Generate symbols for each non-zero entry of the propagator matrix.
+        #
+        P_expr = {}
+        update_expr = {}
+
+        # Group coupled state variables so that their particular solutions
+        # can be computed together.
+        components = self._get_coupled_components_()
+
+        # calculated steady-state equillibrium formula for all inhomogenous systems 
+        particular_solutions = {}
+
+        # Tracking varaibles that fit the drift profile (x' = b)
+        constant_drift_rows = set()
+
+        for indices in components:
+            A_block = self.A_.extract(indices, indices)   # loops through the mapped components to pre-calculate the steady-states 
+            b_block = self.b_.extract(indices, [0])
+
+            if all(_is_zero(b_block[i, 0]) for i in range(len(indices))):  # if system components are homogenous 
+                continue
+
+            # An isolated x' = b equation has constant drift rather than
+            # a constant particular solution.
+            if len(indices) == 1 and _is_zero(A_block[0, 0]):
+                constant_drift_rows.add(indices[0])
+                continue
+
+            try:
+                x_particular = -(A_block.inv() * b_block)   # matrix inversion to find steady state of coupled variables 
+
+            except NonInvertibleMatrixError as exc:  
+                raise PropagatorGenerationException(
+                    "Could not compute a particular solution for the coupled "
+                    "inhomogeneous system containing: " + ", ".join(str(self.x_[i]) for i in indices)) from exc
+
+            for local_idx, global_idx in enumerate(indices):
+                particular_solutions[global_idx] = _custom_simplify_expr(
+                    x_particular[local_idx, 0])
+
+        for row in range(P.shape[0]):  # loop through propagaotor matrix p 
+            # propagator generation is only supported for linear equations.
+            if not _is_zero(self.c_[row]):
+                raise PropagatorGenerationException(
+                    "For symbol " + str(self.x_[row]) + ": nonlinear part should be zero for propagators")    # double-check that the eq is linear 
+
+            # Higher-order inhomogeneous equations are not supported.
+            if (not _is_zero(self.b_[row]) and self.shape_order_from_system_matrix(row) > 1):
+                raise PropagatorGenerationException(
+                    "For symbol " + str(self.x_[row]) + ": higher-order inhomogeneous ODEs are not supported")
+
+            update_expr_terms = []
+
+            for col in range(P.shape[1]):
+                if _is_zero(P[row, col]):
+                    continue
+
+                # Create a symbol for each non-zero propagator entry.
+                sym_str = (
+                    Config().propagators_prefix + "__{}__{}".format(str(self.x_[row]), str(self.x_[col])))
+
+                P_expr[sym_str] = P[row, col]
+
+                if col in particular_solutions:    # Propagate the state relative to its particular solution
+                    # calculate the mathematical shift for coupled inhomogenous equations!  P * (x(t) - x(particular))
+                    update_expr_terms.append(
+                        sym_str + " * (" + str(self.x_[col]) + " - (" + str(particular_solutions[col]) + "))")
+                else:
+                    update_expr_terms.append( 
+                        sym_str + " * " + str(self.x_[col]))
+
+            if row in particular_solutions:
+                # Add the particular solution back after propagation.
+                update_expr_terms.append(
+                    "(" + str(particular_solutions[row]) + ")")
+
+            elif row in constant_drift_rows:
+                
+                # Handle the special case x' = b of an isolated component 
+                update_expr_terms.append(
+                    Config().output_timestep_symbol + " * (" + str(self.b_[row]) + ")")
+
+            # combine string components and parse them for sympy 
+            update_expr[str(self.x_[row])] = " + ".join(update_expr_terms)
+            update_expr[str(self.x_[row])] = _sympy_parse_real(
+                update_expr[str(self.x_[row])],
+                global_dict=Shape._sympy_globals)
+
+            if not _is_zero(self.b_[row]):
+                update_expr[str(self.x_[row])] = _custom_simplify_expr(
+                    update_expr[str(self.x_[row])])
+
+        # construct final solver dictionary blueprint 
+        all_state_symbols = [str(sym) for sym in self.x_]
+        initial_values = {
+            sym: str(self.get_initial_value(sym))
+            for sym in all_state_symbols}
+
+        solver_dict = {
+            "solver": "analytical",
+            "state_variables": all_state_symbols,
+            "initial_values": initial_values}
 
         return solver_dict
 
