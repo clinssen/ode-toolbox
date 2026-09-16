@@ -21,7 +21,6 @@
 
 """
 Expression optimisation helper functions used by the ODE-toolbox analysis pipeline.
-
 This module contains runtime common subexpression elimination (CSE) functionality and test specific validations.
 """
 
@@ -402,7 +401,8 @@ def _apply_cse_to_expression_region(
 
 def apply_cse_to_solver(solver, symbol_prefix="__ode_cse_"):
     """
-    Apply CSE to one ODE-toolbox solver dictionary. Singularity branches are treated as independent execution regions.
+    Apply CSE to one ODE-toolbox solver dictionary. Singularity branches are treated as independent execution regions that has no variable relationships to eachother. 
+    Both solvers are passed to _apply_cse_to_expression_region 
     """
 
     result = dict(solver)
@@ -470,9 +470,9 @@ def _apply_cse_to_solver_blocks(solver_blocks):
 
 def serialize_replacements(replacements):
     """
-    Convert CSE replacement tuples into JSON-safe metadata.
+    Convert symbolic CSE replacement pairs into string, JSON-safe key-value pairs.
+    Transforming a list of tuples [(x, a + b)] into a clean dictionary {"x": "a + b"}.
     """
-    # import pdb;pdb.set_trace()
 
     result = {}
     for symbol, expr in replacements:
@@ -480,10 +480,10 @@ def serialize_replacements(replacements):
 
     return result
 
-
-def _serialize_replacements_metadata(region):
+def _serialize_cse_region_blocks(region):
     """
-    Serialize CSE replacement metadata belonging to one solver region.
+    Serialize the internal cse subexpressions belonging to a single solver and iterates  through through the structure logic blocks 
+    (e.g., specific branches or updates) and replaces raw Sympy symbolic data with JSON-strings. 
     """
 
     # pass if cse wasn't conducted
@@ -495,8 +495,11 @@ def _serialize_replacements_metadata(region):
         # call the indivudal serialise functon once within the solver
         region["cse"][expression_region] = serialize_replacements(replacements)
 
-
 def _find_non_json_serializable(obj, path="root"):
+    """
+    Recursively inspect an object to isolate elements that cannot be serialized to JSON and flag them to user.
+    """
+
     # Clear terminal conditions for valid JSON types
     if isinstance(obj, (str, int, float, bool, type(None))):
         return []
@@ -525,7 +528,6 @@ def _find_non_json_serializable(obj, path="root"):
     # Corrected to a uniform list containing a single 3-element tuple
     return [(path, type(obj).__name__, repr(obj))]
 
-
 #
 #
 # cse optimisation helper functions for validation during cse_testing
@@ -534,13 +536,13 @@ def _find_non_json_serializable(obj, path="root"):
 
 
 def deserialize_cse_replacements(replacements):
+    """
+    deserialize ordered cse replacement definitions into Sympy expressions. Takes a mapping of temporary symbol names to their serialized string expressions, 
+    declares the symbols as real-valued SymPy Symbols, and parses the expressions while maintaining proper scoping dependencies between intermediate terms.
+    """
 
     from .shapes import Shape
     from .sympy_helpers import _sympy_parse_real
-
-    """
-    deserialize ordered cse replacement metadata int Sympy expressions
-    """
 
     if not replacements:
         return []
@@ -608,20 +610,22 @@ def expand_cse_expressions(reduced_expressions, replacements):
 
 def expand_cse_solver(solver):
     """
-    convert an ode-toolbox solver containing serialised cse metadata into the oridinary expression solver. Not modifying the solver itself.
+    convert an ode-toolbox solver containing serialized CSE definitions into an ordinary expression solver. 
+    Does not modify the original solver instance.
     """
 
     import copy
     result = copy.deepcopy(solver)  # make a scratch deep copy of the solver
+    
     # isolate cse tmp translations high level cdict
-    cse_metadata = result.get("cse", {})
+    cse_substitions = result.get("cse", {})
 
     for region_name in ("propagators", "update_expressions"):
         if region_name not in result:
             continue
 
         # pull out keys inside cse dict
-        replacements = cse_metadata.get(region_name)
+        replacements = cse_substitions.get(region_name)
 
         if not replacements:
             continue
@@ -646,7 +650,7 @@ def expand_cse_solver(solver):
             conditional_solver in result["conditions"].items()}
 
     #
-    # drop cse out of meta data and return result
+    # drop the now-expanded CSE block and return the result
     #
     result.pop("cse", None)
 

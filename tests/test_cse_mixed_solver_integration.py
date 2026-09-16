@@ -146,8 +146,7 @@ class TestCSEMixedSolver:
         # Same variables to be integrated, ensures that cse has not broken the code 
         assert ([str(symbol) for symbol in baseline_symbols] == [str(symbol) for symbol in cse_symbols])
 
-        # execution check ensure that both simulations reached the requested
-        # time
+        # execution check ensure that both simulations reached the requested time
         np.testing.assert_allclose(baseline_t_log[-1], simulation_time)
         np.testing.assert_allclose(cse_t_log[-1], simulation_time)
 

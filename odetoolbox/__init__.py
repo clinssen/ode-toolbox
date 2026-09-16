@@ -36,7 +36,7 @@ from .system_of_shapes import SystemOfShapes
 from .shapes import MalformedInputException, Shape
 from .expression_optimisation import (
     _apply_cse_to_solver_blocks,
-    _serialize_replacements_metadata,
+    _serialize_cse_region_blocks,
     _find_non_json_serializable)
 
 
@@ -534,8 +534,8 @@ def _analysis(indict,
         if "conditions" in solver_json.keys():
             for cond, cond_solver in solver_json["conditions"].items():
 
-                # serialize singularity condition metadata.
-                _serialize_replacements_metadata(cond_solver)
+                # serialize singularity condition.
+                _serialize_cse_region_blocks(cond_solver)
 
                 if "update_expressions" in cond_solver:
                     for sym, expr in cond_solver["update_expressions"].items():
@@ -562,11 +562,11 @@ def _analysis(indict,
                 # serialisation belonging to conditional branches
                 if "cse" in solver_json:
                     # CSE for conditional branches
-                    _serialize_replacements_metadata(cond_solver)
+                    _serialize_cse_region_blocks(cond_solver)
 
-        # serialisation cse metadata belonging to this solver.
+        # serialisation cse belonging to this solver.
         if "cse" in solver_json:
-            _serialize_replacements_metadata(
+            _serialize_cse_region_blocks(
                 solver_json)     # CSE for top-level solvers
 
     logging.getLogger(__name__).info("Final output result:")
@@ -577,7 +577,7 @@ def _analysis(indict,
             sort_keys=True))
 
     problems = _find_non_json_serializable(solver_json)
-    for path, type_name, value in problems:      # specific json serialization debug
+    for path, type_name, value in problems:      # non serialized json bug
         logging.getLogger(__name__).error("non-json value %s -> %s: %s",
                                           path, type_name, value)
 
