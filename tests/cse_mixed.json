@@ -10,11 +10,11 @@
             "initial_value": "2"
         },
         {
-            "expression": "x' = x**2 + exp(x + y) + sin(x + y)",
+            "expression": "x' = -x**2 + exp(x + y) + sin(x + y)",
             "initial_value": "1"
         },
         {
-            "expression": "y' = y**2 + exp(x + y) + 3 * sin(x + y)",
+            "expression": "y' = -y**2 + exp(x + y) + 3 * sin(x + y)",
             "initial_value": "2"
         }
     ],

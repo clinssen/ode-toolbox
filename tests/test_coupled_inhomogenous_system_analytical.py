@@ -1,39 +1,38 @@
-"""
-This test is created after the PR #107 to test that we can correctly identify and compile analytical indicts in ODEToolBox
-"""
+# test_coupled_inhomogenous_system_analytical.py
+#
+# This file is part of the NEST ODE toolbox.
+#
+# Copyright (C) 2017 The NEST Initiative
+#
+# The NEST ODE toolbox is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 2 of
+# the License, or (at your option) any later version.
+#
+# The NEST ODE toolbox is distributed in the hope that it will be
+# useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with NEST.  If not, see <http://www.gnu.org/licenses/>.
 
-
+from tests.test_utils import load_test_json
 from .context import odetoolbox
 
 def test_coupled_inhomogeneous_system_is_analytical():
 
-    model = {
-        "dynamics": [
-            {
-            "expression":
-                "x' = -x / tau_x + I", # if we set to initial values x(0) y(0), I still stands alone driving the eq (inhomogenous)
-            "initial_value":
-                "0",
-            },
-            {
-            "expression":
-                "y' = x - y / tau_y", # the value of the second eq requires the value of x to calculate y' (coupled)
-            "initial_value":
-                "0"
-            },
-        ],
+    """
+    This test is created after the PR #107, in which we removed some conservative numerical checks, leading to amat being classified as mixed-solver.
+    """
 
-        "parameters": {
-            "tau_x": "10",
-            "tau_y": "20",
-            "I": "1",
-        }
-    }
-
-    result = odetoolbox.analysis(model, disable_stiffness_check=True, enable_cse=False) # so we are expecting the odetoolbox to correctly classify this model as linear 
-    
+    model = load_test_json("amat.json")
+    result = odetoolbox.analysis(model, disable_stiffness_check=False, enable_cse=True)
     assert len(result) == 1  
     solver = result[0]
-    assert solver["solver"] == "analytical" # if analytical is part of the output we break 
-    assert set(solver["state_variables"]) == {"x","y"} 
+    assert solver["solver"] == "analytical"      # check solver is analytical 
+    assert solver["solver"] != "numerical"     # ensure there are no numerical solvers present
+
+    expected_variables = {"V_m", "V_th_alpha_1", "V_th_alpha_2", "V_th_v", "V_th_v_aux", "refr_t"}     # expected state variables from amat 
+    assert set(solver["state_variables"]) == expected_variables
     

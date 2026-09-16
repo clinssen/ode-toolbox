@@ -1,4 +1,4 @@
-# test_cse_mixed_solver_integration.py
+# test_cse_singularity_handling.py
 #
 # This file is part of the NEST ODE toolbox.
 #
@@ -30,6 +30,20 @@ try:
 except ImportError:
     PYGSL_AVAILABLE = False
 
+
+
+
+"""
+
+ok what would this singularity look like? 
+hmm
+
+for the singulartiy conditional json file  ? we would have conditions that if we fit we would lead to the singularity collapse? 
+first off dont turn off mitigation\
+
+then we can maybe apply these variables knowing the singularity and enforce this? and see how the system responds, with cse? 
+can we make a situation in which a cse temporary leads to a singularity problem? 
+"""
 
 class TestCSEMixedSolver:
     """

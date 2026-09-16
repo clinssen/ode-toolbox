@@ -1,48 +1,28 @@
 {
     "dynamics": [
         {
-            "expression": "V_th_alpha_1' = (-V_th_alpha_1) / tau_1",
-            "initial_values": {
-                "V_th_alpha_1": "0"
-            }
+            "expression": "V_th_alpha_1' = -0.1 * V_th_alpha_1",
+            "initial_values": { "V_th_alpha_1": "0" }
         },
         {
-            "expression": "V_th_alpha_2' = (-V_th_alpha_2) / tau_2",
-            "initial_values": {
-                "V_th_alpha_2": "0"
-            }
+            "expression": "V_th_alpha_2' = -0.005 * V_th_alpha_2",
+            "initial_values": { "V_th_alpha_2": "0" }
         },
         {
-            "expression": "V_m' = ((-(V_m - E_L)) / tau_m + ((((unit_psc * I_kernel_exc__X__exc_spikes)) + (((-unit_psc) * I_kernel_inh__X__inh_spikes))) + I_e + I_stim) / C_m)",
-            "initial_values": {
-                "V_m": "E_L"
-            }
+            "expression": "V_m' = -0.1 * V_m - 7.0 + 0.005 * I_e_stim_total",
+            "initial_values": { "V_m": "-70" }
         },
         {
-            "expression": "V_th_v_aux' = (-V_th_v_aux) / tau_v + beta * ((-(V_m - E_L)) / tau_m + ((((unit_psc * I_kernel_exc__X__exc_spikes)) + (((-unit_psc) * I_kernel_inh__X__inh_spikes))) + I_e + I_stim) / C_m)",
-            "initial_values": {
-                "V_th_v_aux": "0 / 1.0"
-            }
+            "expression": "V_th_v_aux' = -0.2 * V_th_v_aux",
+            "initial_values": { "V_th_v_aux": "0" }
         },
         {
-            "expression": "V_th_v' = (-V_th_v) / tau_v + V_th_v_aux",
-            "initial_values": {
-                "V_th_v": "0"
-            }
+            "expression": "V_th_v' = -0.2 * V_th_v + V_th_v_aux",
+            "initial_values": { "V_th_v": "0" }
         },
         {
-            "expression": "refr_t' = (-1000.) * 1.0 / 1000.0",
-            "initial_values": {
-                "refr_t": "0"
-            }
-        },
-        {
-            "expression": "I_kernel_exc__X__exc_spikes = exp(-t / tau_syn_exc)",
-            "initial_values": {}
-        },
-        {
-            "expression": "I_kernel_inh__X__inh_spikes = exp(-t / tau_syn_inh)",
-            "initial_values": {}
+            "expression": "refr_t' = -1.0",
+            "initial_values": { "refr_t": "0" }
         }
     ],
     "options": {
@@ -50,19 +30,6 @@
         "simplify_expression": "sympy.logcombine(sympy.powsimp(sympy.expand(expr)))"
     },
     "parameters": {
-        "C_m": "200",
-        "E_L": "(-70)",
-        "I_e": "0",
-        "alpha_1": "10",
-        "alpha_2": "0",
-        "beta": "0 / 1.0",
-        "omega": "(-65)",
-        "refr_T": "2",
-        "tau_1": "10",
-        "tau_2": "200",
-        "tau_m": "10",
-        "tau_syn_exc": "1",
-        "tau_syn_inh": "3",
-        "tau_v": "5"
+        "I_e_stim_total": "0"
     }
 }

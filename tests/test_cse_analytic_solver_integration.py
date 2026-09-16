@@ -91,9 +91,9 @@ class TestCSENumericalSolver:
         baseline_solver["parameters"].update(indict.get("parameters", {}))  #  pass parameters into the baseline solvers as they contain expr
         cse_solver["parameters"].update(indict.get("parameters", {}))
 
-        # Run through the existing analytical integrator pipeline
-        baseline_integrator = AnalyticIntegrator(baseline_solver, enable_cse=False)
-        cse_integrator = AnalyticIntegrator(cse_solver, enable_cse=True)
+        # Run through the existing analytical integrator pipeline passing baseline and cse solvers
+        baseline_integrator = AnalyticIntegrator(baseline_solver)
+        cse_integrator = AnalyticIntegrator(cse_solver)
 
         # generate 101 timepoints between 0-20
         time_points = np.linspace(0.0, 20.0, 101)
