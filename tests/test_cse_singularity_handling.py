@@ -16,6 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
+#
+# This file is part of the NEST ODE toolbox.
+#
 
 import copy
 import logging
@@ -65,14 +68,14 @@ class TestCSESingularityHandling:
         (baseline_solvers, baseline_shape_sys, baseline_shapes) = odetoolbox._analysis(
             copy.deepcopy(indict),
             disable_stiffness_check=True,
-            enable_cse=False,
+            disable_cse=True,     # disable cse, so set this flag to true. 
             log_level=logging.DEBUG)
 
         # cse _analysis run
         (cse_solvers, cse_shape_sys, cse_shapes) = odetoolbox._analysis(
             copy.deepcopy(indict),
             disable_stiffness_check=True,
-            enable_cse=True,
+            disable_cse=False,
             log_level=logging.DEBUG)
 
         # ensure solver was identified as analytical

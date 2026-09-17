@@ -16,6 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
+#
+# This file is part of the NEST ODE toolbox.
+# 
 
 import copy
 import logging
@@ -53,7 +56,7 @@ class TestCSEMixedSolver:
             disable_stiffness_check=True,
             disable_analytic_solver=True,
             disable_singularity_detection=True,
-            enable_cse=False,
+            disable_cse=True,
             log_level=logging.DEBUG)
 
         # cse _analysis run
@@ -62,7 +65,7 @@ class TestCSEMixedSolver:
             disable_stiffness_check=True,
             disable_analytic_solver=True,
             disable_singularity_detection=True,
-            enable_cse=True,
+            disable_cse=False,     # default is True, so disable_cse=False has no impact. 
             log_level=logging.DEBUG)
 
         # assert that _analysis produced solvers

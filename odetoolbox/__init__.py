@@ -271,7 +271,7 @@ def _analysis(indict,
               use_alternative_expM: bool = False,
               preserve_expressions: Union[bool,
                                           Iterable[str]] = False,
-              enable_cse: bool = False,
+              disable_cse: bool = False,
               log_level: Union[str,
                                int] = logging.WARNING) -> Tuple[List[Dict],
                                                                 SystemOfShapes,
@@ -459,18 +459,12 @@ def _analysis(indict,
     # perform cse after parameter discovery whilst expressions are Sympy objects
     #
 
-    if enable_cse:  # if cse flag is enabled
+    if disable_cse: 
+        logging.getLogger(__name__).debug("CSE disabled")
+    else: 
+        logging.getLogger(__name__).debug("Applying CSE to %d solver block(s): %s", len(solvers_json), ", ".join(solver.get("solver","unknown") for solver in solvers_json))
 
-        logging.getLogger(__name__).debug(
-            "Applying CSE to %d solver block(s): %s",
-            len(solvers_json),
-            ", ".join(
-                solver.get(
-                    "solver",
-                    "unknown") for solver in solvers_json))
-
-        # pass solver dict as a list into blocks
-        solvers_json = (_apply_cse_to_solver_blocks(solvers_json))
+        solvers_json = (_apply_cse_to_solver_blocks(solvers_json))  # pass solver dict as a list into blocks
 
     #
     #   convert expressions from sympy to string
@@ -479,9 +473,10 @@ def _analysis(indict,
 
     if type(preserve_expressions) is bool:
         if preserve_expressions:
-            if enable_cse:
-                raise Exception(
-                    "Setting ``enable_cse`` to True requires setting ``preserve_expressions`` to False!")
+            if disable_cse:
+                logging.getLogger(__name__).debug("CSE disabled")
+            else: 
+                raise Exception("If cse is enabled then then this requires setting ``preserve_expressions`` to False for numerical expressions!")
 
             # grab all first-order variables
             preserve_expressions = _get_all_first_order_variables(indict)
@@ -605,7 +600,7 @@ def analysis(indict,
              disable_singularity_detection: bool = False,
              disable_singularity_mitigation: bool = False,
              use_alternative_expM: bool = False,
-             enable_cse: bool = False,
+             disable_cse: bool = False,
              preserve_expressions: Union[bool,
                                          Iterable[str]] = False,
              log_level: Union[str,
@@ -621,7 +616,7 @@ def analysis(indict,
     :param use_alternative_expM: If :python:`False`, use the sympy function ``sympy.exp`` to compute the matrix exponential. If :python:`True`, use an alternative function (see :py:func:`odetoolbox.sympy_helpers.expMt` for details). This can be useful as calls to ``sympy.exp`` can sometimes take a very large amount of time.
     :param preserve_expressions: Set to True, or a list of strings corresponding to individual variable names, to disable internal rewriting of expressions, and return same output as input expression where possible. Only applies to variables specified as first-order differential equations.
     :param log_level: Sets the logging threshold. Logging messages which are less severe than ``log_level`` will be ignored. Log levels can be provided as an integer or string, for example "INFO" (more messages) or "WARN" (fewer messages). For a list of valid logging levels, see https://docs.python.org/3/library/logging.html#logging-levels
-    :param enable_cse: Boolean flag set to False. If enabled it will perform sub-expression elimination on update_expression, propagators and singularity conditions of the generated .cpp nestml file.
+    :param disable_cse: Boolean flag set to False. If enabled it will perform sub-expression elimination on update_expression, propagators and singularity conditions of the generated .cpp nestml file.
 
     :return: The result of the analysis. For details, see https://ode-toolbox.readthedocs.io/en/latest/index.html#output
     """
@@ -632,7 +627,6 @@ def analysis(indict,
                         disable_singularity_mitigation=disable_singularity_mitigation,
                         use_alternative_expM=use_alternative_expM,
                         preserve_expressions=preserve_expressions,
-                        enable_cse=enable_cse,
-                        enable_cse_condition_branches=enable_cse_condition_branches,
+                        disable_cse=disable_cse,
                         log_level=log_level)
     return d

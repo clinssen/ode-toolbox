@@ -17,8 +17,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
-
-# test_cse_integrators.py
 #
 # This file is part of the NEST ODE toolbox.
 #
@@ -60,7 +58,7 @@ class TestCSENumericalSolver:
             copy.deepcopy(indict),
             disable_stiffness_check=True,
             disable_singularity_detection=True,
-            enable_cse=False,
+            disable_cse=True,    # disable cse so set this to true 
             # specified as false (default is already false)
             log_level=logging.DEBUG)
 
@@ -69,10 +67,8 @@ class TestCSENumericalSolver:
             copy.deepcopy(indict),
             disable_stiffness_check=True,
             disable_singularity_detection=True,
-            enable_cse=True,  # specified as true for cse
+            disable_cse=False,     # specified as true for cse
             log_level=logging.DEBUG)
-
-        print(json.dumps(cse_solvers, indent=1))
 
         # verify _analysis produced solvers
         assert len(baseline_solvers) == 1
