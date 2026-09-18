@@ -592,22 +592,22 @@ class SystemOfShapes:
 
         Two state variables belong to the same component if they are connected
         through a non-zero coefficient in `A`. The coupling is treated as
-        undirection and variables are treated together when computing a particular solution 
+        undirectional and variables are treated together when computing a particular solution 
         """
 
-        # intialise empty adjacency matrix 
+        # intialise empty adjacency matrix A with 0s
         connectivity = np.zeros(self.A_.shape, dtype=int)
 
-        for row in range(self.A_.shape[0]):
+        for row in range(self.A_.shape[0]):    # for each row and column in A_ 
             for col in range(self.A_.shape[1]):
 
                 if (not _is_zero(self.A_[row, col]) or not _is_zero(self.A_[col, row])):
-                    connectivity[row, col] = 1   # if a connection is found in the nest loop mark it as 1. 
+                    connectivity[row, col] = 1   # if a unidirectional connection is found in the nest loop mark it as 1.
 
-        # finds clusters of connected variables (coupled blocks)
+        # finds clusters of connected variables (1's; coupled blocks) converting a dense connectivity into a sparse
         _, component_labels = scipy.sparse.csgraph.connected_components(scipy.sparse.csr_matrix(connectivity), directed=False)
 
-        # re-shape Scipy raw output into useable blocks of indices
+        # build a final list of blocks each inner nested block is coupled together
         return [ [i for i, label in enumerate(component_labels) if label == component] for component in set(component_labels) ]
 
     def generate_solver_dict_based_on_propagator_matrix_(self, P: sympy.Matrix):
@@ -634,35 +634,32 @@ class SystemOfShapes:
         constant_drift_rows = set()
 
         for indices in components:
-            A_block = self.A_.extract(indices, indices)   # loops through the mapped components to pre-calculate the steady-states 
-            b_block = self.b_.extract(indices, [0])
+            A_block = self.A_.extract(indices, indices)   # for each coupled group, extract submatrix for this block
+            b_block = self.b_.extract(indices, [0])       # pulls out coresponding inhomogenous forcing terms 
 
-            if all(_is_zero(b_block[i, 0]) for i in range(len(indices))):  # if system components are homogenous 
+            if all(_is_zero(b_block[i, 0]) for i in range(len(indices))):  # if the forcing terms are 0, the block is homogenous (non-linear)
                 continue
 
-            # An isolated x' = b equation has constant drift rather than
-            # a constant particular solution.
-            if len(indices) == 1 and _is_zero(A_block[0, 0]):
+            if len(indices) == 1 and _is_zero(A_block[0, 0]):    # if there is a driving force, but coupling is 0,0 means the ode is x'=b (constant drift)
                 constant_drift_rows.add(indices[0])
                 continue
 
-            try:
-                x_particular = -(A_block.inv() * b_block)   # matrix inversion to find steady state of coupled variables 
+            try:    # for everyother case, solve steady state algebraically through matrix inversion (finding identity matrix) 
+                x_particular = -(A_block.inv() * b_block)     # solving the entire blocks steady state 
 
-            except NonInvertibleMatrixError as exc:  
+            except NonInvertibleMatrixError as exc:      # if ablock is non-invertible meaning no steady state 
                 raise PropagatorGenerationException(
-                    "Could not compute a particular solution for the coupled "
+                    "Could not compute a particular solution / steady state for the coupled "
                     "inhomogeneous system containing: " + ", ".join(str(self.x_[i]) for i in indices)) from exc
 
-            for local_idx, global_idx in enumerate(indices):
+            for local_idx, global_idx in enumerate(indices):   # simplify and store the particular solution with helper function 
                 particular_solutions[global_idx] = _custom_simplify_expr(
                     x_particular[local_idx, 0])
 
-        for row in range(P.shape[0]):  # loop through propagaotor matrix p 
-            # propagator generation is only supported for linear equations.
-            if not _is_zero(self.c_[row]):
+        for row in range(P.shape[0]):  # build the update expressions from P 
+            if not _is_zero(self.c_[row]):    # iterate row-by-row over p matrix per state variable, old code kept the same 
                 raise PropagatorGenerationException(
-                    "For symbol " + str(self.x_[row]) + ": nonlinear part should be zero for propagators")    # double-check that the eq is linear 
+                    "For symbol " + str(self.x_[row]) + ": nonlinear part should be zero for propagators")    # split eq Ax, B, C expect linearity/non-linearity 
 
             # Higher-order inhomogeneous equations are not supported.
             if (not _is_zero(self.b_[row]) and self.shape_order_from_system_matrix(row) > 1):
@@ -682,23 +679,19 @@ class SystemOfShapes:
                 P_expr[sym_str] = P[row, col]
 
                 if col in particular_solutions:    # Propagate the state relative to its particular solution
-                    # calculate the mathematical shift for coupled inhomogenous equations!  P * (x(t) - x(particular))
-                    update_expr_terms.append(
-                        sym_str + " * (" + str(self.x_[col]) + " - (" + str(particular_solutions[col]) + "))")
+                    update_expr_terms.append(      # calculate the mathematical shift for coupled inhomogenous equations 
+                        sym_str + " * (" + str(self.x_[col]) + " - (" + str(particular_solutions[col]) + "))")   # shift from steady state to actual value 
                 else:
                     update_expr_terms.append( 
-                        sym_str + " * " + str(self.x_[col]))
+                        sym_str + " * " + str(self.x_[col]))    
 
             if row in particular_solutions:
-                # Add the particular solution back after propagation.
-                update_expr_terms.append(
+                update_expr_terms.append(      # Add the particular solution back after propagation to derive x final 
                     "(" + str(particular_solutions[row]) + ")")
 
-            elif row in constant_drift_rows:
-                
-                # Handle the special case x' = b of an isolated component 
-                update_expr_terms.append(
-                    Config().output_timestep_symbol + " * (" + str(self.b_[row]) + ")")
+            elif row in constant_drift_rows:   # handle equation if there isn't a particular solution 
+                update_expr_terms.append(      # special case x' = b of an isolated component 
+                    Config().output_timestep_symbol + " * (" + str(self.b_[row]) + ")") 
 
             # combine string components and parse them for sympy 
             update_expr[str(self.x_[row])] = " + ".join(update_expr_terms)
@@ -716,7 +709,7 @@ class SystemOfShapes:
             sym: str(self.get_initial_value(sym))
             for sym in all_state_symbols}
 
-        solver_dict = {
+        solver_dict = {    # final assembly for the analytical solver dict 
             "solver": "analytical",
             "propagators": P_expr,
             "update_expressions": update_expr,

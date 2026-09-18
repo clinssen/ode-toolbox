@@ -35,19 +35,6 @@ except ImportError:
     PYGSL_AVAILABLE = False
 
 
-"""
-
-ok what would this singularity look like?
-hmm
-
-for the singulartiy conditional json file  ? we would have conditions that if we fit we would lead to the singularity collapse?
-first off dont turn off mitigation\
-
-then we can maybe apply these variables knowing the singularity and enforce this? and see how the system responds, with cse?
-can we make a situation in which a cse temporary leads to a singularity problem?
-"""
-
-
 class TestCSESingularityHandling:
     """
     Isolated ODE-toolbox validation of CSE for a system containing both an
@@ -61,7 +48,7 @@ class TestCSESingularityHandling:
         Verify that a conditional cse json vs a baseline conditional handling does not change the solution produced
         """
 
-        # load in json that will produce a conditional tau_syn =! tau_m
+        # load in json that will produce a conditional argument
         indict = load_test_json("conditional.json")
 
         # baseline _analysis run
@@ -100,13 +87,14 @@ class TestCSESingularityHandling:
         simulation_time = 5E-3
         max_step_size = 1E-4
 
-        # parameters to produce a singularity, division by 0.
+        # parameters to produce a singularity, division by 0, where tm = tsyn (2.0)
         params_singular = {"tau_syn": "2.0", "tau_m": "2.0", "C_m": "250.0"}
-        # parameters to produce a default solver
+        # parameters to produce a default solver, where tm does not equal tsyn
         params_default = {"tau_syn": "2.0", "tau_m": "5.0", "C_m": "250.0"}
 
         baseline_solver.setdefault("parameters", {})
         cse_solver.setdefault("parameters", {})
+
         # creating 51 steps for simulation time
         time_grid = np.linspace(0.0, simulation_time, 51)
 
@@ -127,7 +115,7 @@ class TestCSESingularityHandling:
                 cse_state = cse_integrator.get_value(t)
                 assert baseline_state.keys() == cse_state.keys()
 
-                for symbol in baseline_state:    # ensure that they are numerical exact
+                for symbol in baseline_state:    # ensure that they are numerically exact across all states 
                     np.testing.assert_allclose(
                         cse_state[symbol],
                         baseline_state[symbol],
