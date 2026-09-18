@@ -29,8 +29,7 @@ def test_coupled_inhomogeneous_system_is_analytical():
     model = load_test_json("amat.json")
     result = odetoolbox.analysis(
         model,
-        disable_stiffness_check=False,
-        enable_cse=True)
+        disable_stiffness_check=False)
     assert len(result) == 1
     solver = result[0]
     assert solver["solver"] == "analytical"      # check solver is analytical
