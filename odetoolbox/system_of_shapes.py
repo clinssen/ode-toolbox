@@ -247,7 +247,20 @@ class SystemOfShapes:
         Generate the propagator matrix and symbolic expressions for propagator-based updates; return as JSON.
         """
 
-        P = self._generate_propagator_matrix(self.A_, use_alternative_expM=use_alternative_expM)
+        top_block = self.A_.row_join(self.b_)
+        bottom_block = sympy.zeros(1, top_block.cols)
+        augmented_A = top_block.col_join(bottom_block)
+
+        augmented_P = self._generate_propagator_matrix(augmented_A, use_alternative_expM=use_alternative_expM)
+
+        n = self.A_.rows - 1  # Get the dimension of P
+        P = augmented_P[:n, :n]
+        Qb = augmented_P[:n, n:]
+
+        #P = self._generate_propagator_matrix(self.A_, use_alternative_expM=use_alternative_expM)
+        # N = self.A_.shape[0]
+        # Q = self.A_.pinv() * (P - sympy.eye(N))
+        # XXX: see Van Loan's Method
 
         #
         #    singularity detection
@@ -321,13 +334,15 @@ class SystemOfShapes:
             except SingularityDetectionException:
                 logging.getLogger(__name__).warning("Could not check the propagator matrix for singularities.")
 
-        return self.generate_solver_dict_based_on_propagator_matrix_(P)
+        return self.generate_solver_dict_based_on_propagator_matrix_(P, Qb)
 
-    def generate_solver_dict_based_on_propagator_matrix_(self, P: sympy.Matrix):
+    def generate_solver_dict_based_on_propagator_matrix_(self, P: sympy.Matrix, Qb):
 
         #
         #   generate symbols for each nonzero entry of the propagator matrix
         #
+        import pdb;pdb.set_trace()
+        # inhom_term = Q * self.b_
 
         P_expr = {}     # the expression corresponding to each propagator symbol
         update_expr = {}    # keys are str(variable symbol), values are str(expressions) that evaluate to the new value of the corresponding key
@@ -346,21 +361,25 @@ class SystemOfShapes:
                     P_expr[sym_str] = P[row, col]
                     update_expr_terms.append(sym_str + " * " + str(self.x_[col]))
 
-            if not _is_zero(self.b_[row]):
-                # this is an inhomogeneous ODE
-                if _is_zero(self.A_[row, row]):
-                    # of the form x' = const
-                    update_expr_terms.append(Config().output_timestep_symbol + " * " + str(self.b_[row]))
-                else:
+            # if not _is_zero(self.b_[row]):
+            #     # this is an inhomogeneous ODE
+            #     if _is_zero(self.A_[row, row]):
+            #         # of the form x' = const
+            #         update_expr_terms.append(Config().output_timestep_symbol + " * " + str(self.b_[row]))
+            #     else:
 
-                    #
-                    #    generate update expressions
-                    #
+            #         #
+            #         #    generate update expressions
+            #         #
 
-                    particular_solution = -self.b_[row] / self.A_[row, row]
-                    sym_str = Config().propagators_prefix + "__{}__{}".format(str(self.x_[row]), str(self.x_[row]))
-                    update_expr_terms.append("-" + sym_str + " * " + str(self.x_[row]))    # remove the term (add its inverse) that would have corresponded to a homogeneous solution and that was added in the ``for col...`` loop above
-                    update_expr_terms.append(sym_str + " * (" + str(self.x_[row]) + " - (" + str(particular_solution) + "))" + " + (" + str(particular_solution) + ")")
+            #         particular_solution = -self.b_[row] / self.A_[row, row]
+            #         sym_str = Config().propagators_prefix + "__{}__{}".format(str(self.x_[row]), str(self.x_[row]))
+            #         update_expr_terms.append("-" + sym_str + " * " + str(self.x_[row]))    # remove the term (add its inverse) that would have corresponded to a homogeneous solution and that was added in the ``for col...`` loop above
+            #         update_expr_terms.append(sym_str + " * (" + str(self.x_[row]) + " - (" + str(particular_solution) + "))" + " + (" + str(particular_solution) + ")")
+
+            if not _is_zero(Qb[row]):
+                update_expr_terms.append(str(Qb[row]))
+
 
             update_expr[str(self.x_[row])] = " + ".join(update_expr_terms)
             update_expr[str(self.x_[row])] = _sympy_parse_real(update_expr[str(self.x_[row])], global_dict=Shape._sympy_globals)

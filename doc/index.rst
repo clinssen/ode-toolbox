@@ -555,11 +555,17 @@ The update expressions formulate the way in which the propagators are used to co
    I_{syn} &\leftarrow P_{I_{syn},I_{syn}} I_{syn}\\
    V_m &\leftarrow P_{V_m,V_m} V_m + P_{V_m,I_{syn}} I_{syn}
 
-In the case of an autonomous ODE (for which :math:`\textbf{b}` contains a nonzero, constant entry, and the corresponding entry in :math:`\textbf{A}` is zero), the update equation is of the form:
+In the case of an autonomous ODE (for which :math:`\textbf{b}` contains a nonzero, constant entry), the update equation is of the form:
 
 .. math::
 
-   x \leftarrow P x + \Delta t \cdot b
+   x \leftarrow P x + Q b
+
+where
+
+.. math::
+
+   Q = A^{-1}(P - I)
 
 For example for the ODE:
 
@@ -571,7 +577,7 @@ the update equation is:
 
 .. math::
 
-   x \leftarrow P x + \Delta t \cdot 1.618
+   x \leftarrow P x + 1.618
 
 In the case of an inhomogenous ODE (for which :math:`\textbf{b}` contains a nonzero, constant entry, but the corresponding entry in :math:`\textbf{A}` is nonzero), the update equation is of the form:
 
@@ -679,6 +685,7 @@ References
 
 .. [3] Inga Blundell, Dimitri Plotnikov, Jochen Martin Eppler and Abigail Morrison (2018) **Automatically selecting a suitable integration scheme for systems of differential equations in neuron models.** Front. Neuroinform. `doi:10.3389/fninf.2018.00050 <https://doi.org/10.3389/fninf.2018.00050>`__.
 
+.. [4] Van Loan, C. (1978). Computing integrals involving the matrix exponential. IEEE Transactions on Automatic Control, 23(3), 395–404. https://doi.org/10.1109/tac.1978.1101743
 
 Acknowledgements
 ----------------
