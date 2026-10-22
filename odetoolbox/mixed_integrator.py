@@ -92,7 +92,7 @@ class MixedIntegrator(Integrator):
             self._parameters = {}
         else:
             self._parameters = parameters
-        self._parameters = {k: _sympy_parse_real(v, global_dict=Shape._sympy_globals).n() if not _is_sympy_type(v) else v for k, v in self._parameters.items()}
+        self._parameters = {k: _sympy_parse_real(v, global_dict=sympy_globals).n() if not _is_sympy_type(v) else v for k, v in self._parameters.items()}
         self._locals = {}
         for parameter_name, parameter_expr in self._parameters.items():
             self._locals[sympy.Symbol(parameter_name, real=True)] = parameter_expr

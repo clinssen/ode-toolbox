@@ -59,7 +59,7 @@ class StiffnessTester:
             self.parameters = {}
         else:
             self.parameters = parameters
-        self.parameters = {k: _sympy_parse_real(v, global_dict=Shape._sympy_globals).n() for k, v in self.parameters.items()}
+        self.parameters = {k: _sympy_parse_real(v, global_dict=sympy_globals).n() for k, v in self.parameters.items()}
         self._locals = self.parameters.copy()
         if stimuli is None:
             self._stimuli = []

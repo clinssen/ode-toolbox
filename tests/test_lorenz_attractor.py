@@ -42,9 +42,9 @@ class TestLorenzAttractor:
         assert len(solver_dict) == 1
         solver_dict = solver_dict[0]
         assert solver_dict["solver"].startswith("numeric")
-        assert _sympy_parse_real(solver_dict["update_expressions"]["x"], global_dict=Shape._sympy_globals).expand().simplify() \
-               == _sympy_parse_real("sigma*(-x + y)", global_dict=Shape._sympy_globals).expand().simplify()
-        assert _sympy_parse_real(solver_dict["update_expressions"]["y"], global_dict=Shape._sympy_globals).expand().simplify() \
-               == _sympy_parse_real("rho*x - x*z - y", global_dict=Shape._sympy_globals).expand().simplify()
-        assert _sympy_parse_real(solver_dict["update_expressions"]["z"], global_dict=Shape._sympy_globals).expand().simplify() \
-               == _sympy_parse_real("-beta*z + x*y", global_dict=Shape._sympy_globals).expand().simplify()
+        assert _sympy_parse_real(solver_dict["update_expressions"]["x"], global_dict=sympy_globals).expand().simplify() \
+               == _sympy_parse_real("sigma*(-x + y)", global_dict=sympy_globals).expand().simplify()
+        assert _sympy_parse_real(solver_dict["update_expressions"]["y"], global_dict=sympy_globals).expand().simplify() \
+               == _sympy_parse_real("rho*x - x*z - y", global_dict=sympy_globals).expand().simplify()
+        assert _sympy_parse_real(solver_dict["update_expressions"]["z"], global_dict=sympy_globals).expand().simplify() \
+               == _sympy_parse_real("-beta*z + x*y", global_dict=sympy_globals).expand().simplify()

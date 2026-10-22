@@ -236,7 +236,13 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
             sys.exit(1)
 
     shape_sys = SystemOfShapes.from_shapes(shapes, parameters=parameters)
-    _, node_is_analytically_solvable = _find_analytically_solvable_equations(shape_sys, shapes, parameters=parameters)
+
+
+    scc = scipy.sparse.csgraph.connected_components(np.array(shape_sys.A_+shape_sys.A_.T)!=0, connection="strong")[1]
+
+
+    dependency_edges, node_is_analytically_solvable = _find_analytically_solvable_equations(shape_sys, shapes, parameters=parameters)
+    import pdb;pdb.set_trace()
 
     logging.getLogger(__name__).info("System of equations (with dx/dt = Ax + b + c):")
     logging.getLogger(__name__).info("x = " + str(shape_sys.x_))
@@ -325,7 +331,7 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
             for param_name, param_expr in indict["parameters"].items():
                 # only make parameters appear in a solver if they are actually used there
                 if symbol_appears_in_any_expr(sym, solver_json):
-                    sympy_expr = _sympy_parse_real(param_expr, global_dict=Shape._sympy_globals)
+                    sympy_expr = _sympy_parse_real(param_expr, global_dict=sympy_globals)
 
                     # validate output for numerical problems -- note that we skip checking for infinity here as some parameters (like "V_max") could be legitimately defined as infinity
                     for var in sympy_expr.atoms():

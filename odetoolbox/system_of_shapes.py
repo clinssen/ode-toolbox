@@ -213,6 +213,7 @@ class SystemOfShapes:
             blocks = get_block_diagonal_blocks(np.array(A))
             propagators = [_custom_simplify_expr(expM(sympy.Matrix(block) * sympy.Symbol(Config().output_timestep_symbol, real=True))) for block in blocks]
             P = sympy.Matrix(scipy.linalg.block_diag(*propagators))
+            import pdb;pdb.set_trace()
         except GetBlockDiagonalException:
             # naive: calculate propagators in one step -- can be quite slow if ``A`` is a large matrix
             logging.getLogger(__name__).debug("Computing propagator matrix...")
@@ -341,7 +342,6 @@ class SystemOfShapes:
         #
         #   generate symbols for each nonzero entry of the propagator matrix
         #
-        import pdb;pdb.set_trace()
         # inhom_term = Q * self.b_
 
         P_expr = {}     # the expression corresponding to each propagator symbol
@@ -382,7 +382,7 @@ class SystemOfShapes:
 
 
             update_expr[str(self.x_[row])] = " + ".join(update_expr_terms)
-            update_expr[str(self.x_[row])] = _sympy_parse_real(update_expr[str(self.x_[row])], global_dict=Shape._sympy_globals)
+            update_expr[str(self.x_[row])] = _sympy_parse_real(update_expr[str(self.x_[row])], global_dict=sympy_globals)
             if not _is_zero(self.b_[row]):
                 # only simplify in case an inhomogeneous term is present
                 update_expr[str(self.x_[row])] = _custom_simplify_expr(update_expr[str(self.x_[row])])
@@ -431,7 +431,7 @@ class SystemOfShapes:
                 else:
                     update_expr_terms.append(str(y) + " * (" + str(self.A_[row, col]) + ")")
             update_expr[str(x)] = " + ".join(update_expr_terms) + " + (" + str(self.b_[row]) + ") + (" + str(self.c_[row]) + ")"
-            update_expr[str(x)] = _sympy_parse_real(update_expr[str(x)], global_dict=Shape._sympy_globals)
+            update_expr[str(x)] = _sympy_parse_real(update_expr[str(x)], global_dict=sympy_globals)
 
         # custom expression simplification
         for name, expr in update_expr.items():
