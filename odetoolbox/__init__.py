@@ -237,6 +237,7 @@ def _analysis(indict, disable_stiffness_check: bool = False, disable_analytic_so
 
     shape_sys = SystemOfShapes.from_shapes(shapes, parameters=parameters)
 
+    import numpy as np
 
     scc = scipy.sparse.csgraph.connected_components(np.array(shape_sys.A_+shape_sys.A_.T)!=0, connection="strong")[1]
 
