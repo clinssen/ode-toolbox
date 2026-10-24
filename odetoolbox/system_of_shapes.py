@@ -33,7 +33,7 @@ import sympy.matrices
 from .config import Config
 from .shapes import Shape
 from .singularity_detection import SingularityDetection, SingularityDetectionException
-from .sympy_helpers import SymmetricEq, _custom_simplify_expr, _is_zero, expMt, _sympy_parse_real
+from .sympy_helpers import SymmetricEq, _custom_simplify_expr, _is_zero, expMt, _sympy_parse_real, sympy_globals
 
 
 class GetBlockDiagonalException(Exception):
@@ -213,7 +213,6 @@ class SystemOfShapes:
             blocks = get_block_diagonal_blocks(np.array(A))
             propagators = [_custom_simplify_expr(expM(sympy.Matrix(block) * sympy.Symbol(Config().output_timestep_symbol, real=True))) for block in blocks]
             P = sympy.Matrix(scipy.linalg.block_diag(*propagators))
-            import pdb;pdb.set_trace()
         except GetBlockDiagonalException:
             # naive: calculate propagators in one step -- can be quite slow if ``A`` is a large matrix
             logging.getLogger(__name__).debug("Computing propagator matrix...")
@@ -254,19 +253,21 @@ class SystemOfShapes:
 
         augmented_P = self._generate_propagator_matrix(augmented_A, use_alternative_expM=use_alternative_expM)
 
-        n = self.A_.rows - 1  # Get the dimension of P
-        P = augmented_P[:n, :n]
-        Qb = augmented_P[:n, n:]
+        N = self.A_.rows  # Get the dimension of P
+        P = augmented_P[:N, :N]
+        Qb = augmented_P[:N, -1]
 
-        #P = self._generate_propagator_matrix(self.A_, use_alternative_expM=use_alternative_expM)
+        # import pdb;pdb.set_trace()
+
+        # following three lines are the naive way of computing Van Loan's method, namely by using an explicit matrix inverse
+        # P = self._generate_propagator_matrix(self.A_, use_alternative_expM=use_alternative_expM)
         # N = self.A_.shape[0]
         # Q = self.A_.pinv() * (P - sympy.eye(N))
-        # XXX: see Van Loan's Method
 
         #
         #    singularity detection
         #
-
+        disable_singularity_detection = True
         if not disable_singularity_detection:
             try:
                 conditions = SingularityDetection.find_propagator_singularities(P, self.A_)
@@ -379,7 +380,6 @@ class SystemOfShapes:
 
             if not _is_zero(Qb[row]):
                 update_expr_terms.append(str(Qb[row]))
-
 
             update_expr[str(self.x_[row])] = " + ".join(update_expr_terms)
             update_expr[str(self.x_[row])] = _sympy_parse_real(update_expr[str(self.x_[row])], global_dict=sympy_globals)
