@@ -257,8 +257,6 @@ class SystemOfShapes:
         P = augmented_P[:N, :N]
         Qb = augmented_P[:N, -1]
 
-        # import pdb;pdb.set_trace()
-
         # following three lines are the naive way of computing Van Loan's method, namely by using an explicit matrix inverse
         # P = self._generate_propagator_matrix(self.A_, use_alternative_expM=use_alternative_expM)
         # N = self.A_.shape[0]

@@ -26,8 +26,8 @@ class Config:
     """
 
     config = {
-        "simplify_expression": "sympy.simplify(expr)",
-        "expression_simplification_threshold": 1000,
+        "simplify_expression": "sympy.nsimplify(sympy.simplify(expr), rational=True)",
+        "expression_simplification_threshold": 2500,
         "input_time_symbol": "t",
         "output_timestep_symbol": "__h",
         "differential_order_symbol": "__d",
