@@ -61,41 +61,6 @@ class Shape:
     the :python:`symbol` of the ODE would be :python:`x` (i.e. without any qualifiers), :python:`order` would be 3, :python:`derivative_factors` would contain the linear part in the form of the list :python:`[c1, c2, c3]`, the inhomogeneous term would be :python:`c0` and the nonlinear part :python:`x*y + x**2` is stored in :python:`nonlin_term`.
     """
 
-    # a minimal subset of sympy classes and functions to avoid "from sympy import *"
-    _sympy_globals = {"Symbol": sympy.Symbol,
-                      "Integer": sympy.Integer,
-                      "Float": sympy.Float,
-                      "Function": sympy.Function,
-                      "Add": sympy.Add,
-                      "Mul": sympy.Mul,
-                      "Pow": sympy.Pow,
-                      "power": sympy.Pow,
-                      "exp": sympy.exp,
-                      "log": sympy.log,
-                      "sin": sympy.sin,
-                      "cos": sympy.cos,
-                      "tan": sympy.tan,
-                      "asin": sympy.asin,
-                      "sinh": sympy.sinh,
-                      "asinh": sympy.asinh,
-                      "acos": sympy.acos,
-                      "cosh": sympy.cosh,
-                      "acosh": sympy.acosh,
-                      "tanh": sympy.tanh,
-                      "atanh": sympy.atanh,
-                      "min": sympy.Min,
-                      "max": sympy.Max,
-                      "Heaviside": sympy.Heaviside,
-                      "e": sympy.exp(1),
-                      "E": sympy.exp(1),
-                      "t": sympy.Symbol("t", real=True),
-                      "DiracDelta": sympy.DiracDelta}
-
-    # cython backend (used by sympy autowrap()) cannot handle these functions; need to provide alternative implementation
-    _sympy_autowrap_helpers = [("Min", (abs(sympy.symbols("x", real=True) + sympy.symbols("y", real=True)) - abs(sympy.symbols("x", real=True) - sympy.symbols("y", real=True))) / 2, [sympy.symbols("x", real=True), sympy.symbols("y", real=True)]),
-                               ("Max", (abs(sympy.symbols("x", real=True) + sympy.symbols("y", real=True)) + abs(sympy.symbols("x", real=True) - sympy.symbols("y", real=True))) / 2, [sympy.symbols("x", real=True), sympy.symbols("y", real=True)]),
-                               ("Heaviside", (sympy.symbols("x", real=True) + abs(sympy.symbols("x", real=True))) / (2 * abs(sympy.symbols("x", real=True)) + 1E-300), [sympy.symbols("x", real=True)])]
-
     def __init__(self, symbol: sympy.Symbol, order, initial_values, derivative_factors, inhom_term=sympy.Float(0.), nonlin_term=sympy.Float(0.), lower_bound=None, upper_bound=None):
         r"""
         Perform type and consistency checks and assign arguments to member variables.

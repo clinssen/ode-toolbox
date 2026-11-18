@@ -27,9 +27,8 @@ import sympy.utilities
 import sympy.utilities.autowrap
 
 from odetoolbox.config import Config
-from odetoolbox.sympy_helpers import SymmetricEq, _sympy_parse_real
+from odetoolbox.sympy_helpers import SymmetricEq, _sympy_parse_real, sympy_autowrap_helpers, sympy_globals
 
-from .shapes import Shape
 from .integrator import Integrator
 
 
@@ -213,7 +212,7 @@ class AnalyticIntegrator(Integrator):
             self.update_expressions_wrapped[k] = sympy.utilities.autowrap.autowrap(v,
                                                                                    args=[sympy.Symbol(Config().output_timestep_symbol, real=True)] + self.all_variable_symbols,
                                                                                    backend="cython",
-                                                                                   helpers=Shape._sympy_autowrap_helpers)
+                                                                                   helpers=sympy_autowrap_helpers)
 
     def get_all_variable_symbols(self):
         return self.all_variable_symbols
